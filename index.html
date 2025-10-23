@@ -13,18 +13,60 @@
             font-family: 'Inter', sans-serif;
             background-color: #f7f9fb;
         }
+        /* SVGの描画スタイル */
         .hangman-part {
             fill: none;
             stroke: #2c3e50;
             stroke-width: 4;
             stroke-linecap: round;
         }
+        /* QWERTY配列のためにキーボードのグリッド設定を解除し、flexベースにする */
+        #keyboard {
+            display: flex;
+            flex-direction: column;
+            gap: 4px; /* gap-1 md:gap-2 に相当 */
+            padding: 12px;
+            background-color: #f9fafb; /* bg-gray-50 */
+            border-radius: 8px; /* rounded-lg */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); /* shadow-md */
+        }
+        .key-row {
+            display: flex;
+            justify-content: center;
+            gap: 4px; /* gap-1 md:gap-2 に相当 */
+        }
+        .key-button {
+            flex-grow: 1;
+            padding: 8px 12px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.15s;
+        }
+        @media (min-width: 768px) {
+            .key-button {
+                padding: 12px 16px;
+                font-size: 16px;
+            }
+        }
+        /* コンテナの背景に subtle gradient を適用 */
+        #game-container {
+            background: linear-gradient(145deg, #ffffff, #f0f4f8);
+        }
+        /* ハングマン描画エリアに影を付けて立体感を出す */
+        #hangman-svg-container {
+             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+             border-radius: 12px;
+             background-color: #fff;
+             padding: 8px;
+        }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
     <!-- コンテナの最大幅を max-w-xl (640px) に拡大 -->
-    <div id="game-container" class="w-full max-w-xl bg-white shadow-2xl rounded-xl p-6 md:p-8 space-y-6">
+    <div id="game-container" class="w-full max-w-xl shadow-2xl rounded-xl p-6 md:p-8 space-y-6">
         <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 text-center border-b-4 border-indigo-500 pb-3">
             HANGED MAN
         </h1>
@@ -39,28 +81,31 @@
 
         <!-- ゲームボードエリア -->
         <div class="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-6">
-
+            
             <!-- ハングマン描画エリア (SVG) -->
-            <div class="flex-shrink-0 w-full md:w-1/2 flex justify-center items-center">
+            <div id="hangman-svg-container" class="flex-shrink-0 w-full md:w-1/2 flex justify-center items-center">
                 <svg id="hangman-svg" viewBox="0 0 100 120" class="w-40 h-48 md:w-48 md:h-60">
-                    <!-- 絞首台 (常に表示) -->
-                    <line x1="10" y1="110" x2="90" y2="110" class="hangman-part" /> <!-- 地面 -->
-                    <line x1="20" y1="110" x2="20" y2="10" class="hangman-part" /> <!-- 縦柱 -->
-                    <line x1="20" y1="10" x2="70" y2="10" class="hangman-part" /> <!-- 横梁 -->
-                    <line x1="70" y1="10" x2="70" y2="20" class="hangman-part" /> <!-- 縄 -->
-
-                    <!-- 間違いに応じて表示されるパーツ (0:台座/縄, 1:頭, 2:体, 3:左腕, 4:右腕, 5:左足, 6:右足) -->
-                    <!-- 1: 頭 -->
+                    <!-- 絞首台 (間違いに応じて表示されるパーツ 1-8) -->
+                    <!-- 1. 地面 (単独ステップ) -->
+                    <line id="part-gallows-base" x1="10" y1="110" x2="90" y2="110" class="hangman-part hidden" /> 
+                    
+                    <!-- 2. 縦柱 (2ステップ目で一括表示されるグループの一部) -->
+                    <line id="part-gallows-pole" x1="20" y1="110" x2="20" y2="10" class="hangman-part hidden" /> 
+                    <line id="part-gallows-beam" x1="20" y1="10" x2="70" y2="10" class="hangman-part hidden" /> <!-- 2. 横梁 -->
+                    <line id="part-gallows-rope" x1="70" y1="10" x2="70" y2="20" class="hangman-part hidden" /> <!-- 2. 縄 -->
+                    
+                    <!-- 人体 (間違いに応じて表示されるパーツ 3-8) -->
+                    <!-- 3. 頭 -->
                     <circle id="part-head" cx="70" cy="30" r="10" class="hangman-part hidden" />
-                    <!-- 2: 体 -->
+                    <!-- 4. 体 -->
                     <line id="part-body" x1="70" y1="40" x2="70" y2="80" class="hangman-part hidden" />
-                    <!-- 3: 左腕 -->
+                    <!-- 5. 左腕 -->
                     <line id="part-larm" x1="70" y1="50" x2="60" y2="65" class="hangman-part hidden" />
-                    <!-- 4: 右腕 -->
+                    <!-- 6. 右腕 -->
                     <line id="part-rarm" x1="70" y1="50" x2="80" y2="65" class="hangman-part hidden" />
-                    <!-- 5: 左足 -->
+                    <!-- 7. 左足 (新規追加) -->
                     <line id="part-lleg" x1="70" y1="80" x2="60" y2="95" class="hangman-part hidden" />
-                    <!-- 6: 右足 -->
+                    <!-- 8. 右足 (新規追加) -->
                     <line id="part-rleg" x1="70" y1="80" x2="80" y2="95" class="hangman-part hidden" />
                 </svg>
             </div>
@@ -68,10 +113,10 @@
             <!-- 単語と情報エリア -->
             <div class="w-full md:w-1/2 space-y-4">
                 <!-- 単語表示エリア -->
-                <div id="word-display" class="text-4xl md:text-5xl font-mono tracking-widest text-center text-indigo-700 p-4 bg-indigo-50 rounded-lg shadow-inner border-2 border-indigo-200 whitespace-nowrap">
+                <div id="word-display" class="text-4xl md:text-5xl font-mono tracking-widest text-center text-indigo-700 p-4 bg-indigo-50 rounded-lg shadow-inner border-2 border-indigo-200 whitespace-nowrap hover:shadow-lg transition duration-200">
                     <!-- 単語のアンダースコアが表示される -->
                 </div>
-
+                
                 <!-- 連勝・タイマー表示 -->
                 <div class="flex justify-between text-lg text-gray-600 font-semibold">
                     <p>
@@ -81,7 +126,7 @@
                         時間: <span id="timer-display" class="font-bold text-red-600">0.00</span>s
                     </p>
                     <p>
-                        間違い残り: <span id="remaining-guesses" class="font-bold text-red-500">6</span>
+                        間違い残り: <span id="remaining-guesses" class="font-bold text-red-500">8</span>
                     </p>
                 </div>
 
@@ -94,11 +139,11 @@
             </div>
         </div>
 
-        <!-- キーボードエリア -->
-        <div id="keyboard" class="grid grid-cols-7 gap-1 md:gap-2 p-3 bg-gray-50 rounded-lg shadow-md">
-            <!-- JavaScriptでアルファベットボタンが挿入される -->
+        <!-- キーボードエリア (CSSをカスタムし、グリッドクラスを削除) -->
+        <div id="keyboard">
+            <!-- JavaScriptでQWERTY配列のボタンが挿入される -->
         </div>
-
+        
         <!-- リスタートボタン -->
         <div class="text-center">
             <button id="restart-button" class="px-6 py-3 bg-green-500 text-white font-bold rounded-full shadow-lg hover:bg-green-600 transition duration-150 transform hover:scale-105 disabled:bg-gray-400" disabled>
@@ -122,12 +167,12 @@
             <h2 class="text-3xl font-bold mb-4 text-indigo-700 text-center">💡 ゲームルール 💡</h2>
             <div class="space-y-4 text-gray-700">
                 <p>ハングマン（Hanged Man）は、隠された単語を推測するゲームです。アルファベットを一つずつ選んで、単語に含まれているか推測します。</p>
-
+                
                 <h3 class="text-xl font-semibold border-b pb-1 text-gray-800">遊び方</h3>
                 <ul class="list-disc list-inside space-y-2 ml-4">
                     <li>単語に含まれる文字を推測すると、その文字が単語内に表示されます。</li>
                     <li>推測した文字が単語に含まれていない場合、<b>絞首台のパーツが一つ追加</b>されます。</li>
-                    <li>パーツが<b>6つ完成する前に</b>単語をすべて当てれば<b>勝利</b>です！</li>
+                    <li>パーツは8つまで描画されます。<b>合計8回</b>の間違いまでに単語をすべて当てれば<b>勝利</b>です！</li>
                 </ul>
 
                 <h3 class="text-xl font-semibold border-b pb-1 text-gray-800">ゲームモード</h3>
@@ -159,9 +204,17 @@
 
     <script>
         // --- 設定と定数 ---
-        // 単語リスト (const words) はメインスクリプトの外に移動しました
-        const maxIncorrectGuesses = 6;
-        const hangmanParts = ["part-head", "part-body", "part-larm", "part-rarm", "part-lleg", "part-rleg"];
+        // 間違い回数の上限を8に設定
+        const maxIncorrectGuesses = 8;
+        // 人体パーツ (間違い3回目から始まる)
+        const humanParts = [
+            "part-head",   // 3回目
+            "part-body",   // 4回目
+            "part-larm",   // 5回目
+            "part-rarm",   // 6回目
+            "part-lleg",   // 7回目
+            "part-rleg"    // 8回目
+        ];
 
         const GAME_MODES = {
             ENDLESS: 'エンドレス',
@@ -169,6 +222,14 @@
             STREAK_10: '10連勝',
             TIME_ATTACK_5: '5連勝 (TA)'
         };
+        
+        // QWERTYキーボード配列を定義 (3行)
+        const keyboardLayout = [
+            'QWERTYUIOP'.split(''),
+            'ASDFGHJKL'.split(''),
+            'ZXCVBNM'.split('')
+        ];
+
 
         // --- ゲーム状態変数 ---
         let secretWord;
@@ -182,7 +243,7 @@
         let timerInterval;
         let startTime;
         let elapsedTime = parseFloat(localStorage.getItem('hangmanElapsedTime') || '0');
-
+        
         // DOM要素の取得
         const wordDisplay = document.getElementById('word-display');
         const keyboard = document.getElementById('keyboard');
@@ -215,7 +276,7 @@
             // UIの初期化
             updateModeUI();
             updateWordDisplay();
-            updateHangedMan();
+            updateHangedMan(); // 初期描画 (全て非表示)
             updateGuessedLettersList();
             updateRemainingGuesses();
             createKeyboard();
@@ -247,7 +308,7 @@
                     'border-2'
                 );
                 button.setAttribute('data-mode', mode);
-
+                
                 if (mode === currentMode) {
                     button.classList.add('bg-indigo-500', 'text-white', 'border-indigo-600');
                 } else {
@@ -266,17 +327,17 @@
         function setGameMode(mode) {
             currentMode = mode;
             localStorage.setItem('hangmanGameMode', mode);
-
+            
             // モード変更時は連勝とタイマーをリセット
             currentStreak = 0;
             elapsedTime = 0;
             localStorage.setItem('hangmanCurrentStreak', '0');
             localStorage.setItem('hangmanElapsedTime', '0');
-
+            
             updateModeUI();
             initializeGame();
         }
-
+        
         /**
          * モード関連のUIを更新する
          */
@@ -318,14 +379,26 @@
             }
             wordDisplay.textContent = display;
         }
-
+        
         function updateHangedMan() {
-            for (let i = 0; i < hangmanParts.length; i++) {
-                const part = document.getElementById(hangmanParts[i]);
-                if (i < incorrectGuesses) {
-                    part.classList.remove('hidden');
-                } else {
-                    part.classList.add('hidden');
+            // --- 絞首台の描画制御 ---
+            
+            // 1. 地面 (ミス1回目以降に表示)
+            document.getElementById("part-gallows-base").classList.toggle('hidden', incorrectGuesses < 1);
+            
+            // 2. 柱・梁・縄 (ミス2回目以降に一括で表示)
+            const showGallowsStructure = incorrectGuesses >= 2;
+            document.getElementById("part-gallows-pole").classList.toggle('hidden', !showGallowsStructure);
+            document.getElementById("part-gallows-beam").classList.toggle('hidden', !showGallowsStructure);
+            document.getElementById("part-gallows-rope").classList.toggle('hidden', !showGallowsStructure);
+
+            // --- 人体の描画制御 (ミス3回目以降) ---
+            for (let i = 0; i < humanParts.length; i++) {
+                const part = document.getElementById(humanParts[i]);
+                if (part) {
+                    // 人体パーツは3回目のミスから始まるため、 i + 3 と比較する
+                    // i=0 (頭) -> 3回目, i=1 (体) -> 4回目, ..., i=5 (右足) -> 8回目
+                    part.classList.toggle('hidden', incorrectGuesses < (i + 3));
                 }
             }
         }
@@ -334,34 +407,42 @@
             const sortedLetters = Array.from(guessedLetters).sort();
             guessedLettersList.textContent = sortedLetters.join(', ');
         }
-
+        
         function updateRemainingGuesses() {
             remainingGuessesSpan.textContent = maxIncorrectGuesses - incorrectGuesses;
             remainingGuessesSpan.classList.toggle('text-red-500', maxIncorrectGuesses - incorrectGuesses <= 2);
             remainingGuessesSpan.classList.toggle('text-green-500', maxIncorrectGuesses - incorrectGuesses > 2);
         }
 
+        /**
+         * QWERTY配列でキーボードを作成する
+         */
         function createKeyboard() {
             keyboard.innerHTML = '';
-            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+            
+            keyboardLayout.forEach(row => {
+                const rowDiv = document.createElement('div');
+                // カスタムCSSで定義したキーボード行のスタイルを適用
+                rowDiv.classList.add('key-row'); 
+                
+                row.forEach(letter => {
+                    const button = document.createElement('button');
+                    button.textContent = letter;
+                    button.classList.add(
+                        'key-button', // カスタムCSSで定義した基本スタイル
+                        'bg-indigo-500', 'text-white', 'hover:bg-indigo-600', 'transition', 'duration-100',
+                        'active:bg-indigo-700', 'disabled:bg-gray-300', 'disabled:text-gray-500', 'disabled:shadow-none'
+                    );
+                    button.setAttribute('data-letter', letter);
+                    button.addEventListener('click', () => handleGuess(letter, button));
+                    rowDiv.appendChild(button);
 
-            alphabet.forEach(letter => {
-                const button = document.createElement('button');
-                button.textContent = letter;
-                button.classList.add(
-                    'p-2', 'md:p-3', 'text-sm', 'md:text-base', 'font-bold', 'rounded-lg', 'shadow-md',
-                    'bg-indigo-500', 'text-white', 'hover:bg-indigo-600', 'transition', 'duration-100',
-                    'active:bg-indigo-700', 'disabled:bg-gray-300', 'disabled:text-gray-500', 'disabled:shadow-none'
-                );
-                button.setAttribute('data-letter', letter);
-                button.addEventListener('click', () => handleGuess(letter, button));
-                keyboard.appendChild(button);
-
-                if (guessedLetters.has(letter)) {
-                    // ボタンの状態を正しく更新するため、handleGuessと同じロジックを再実行する
-                    const isCorrect = secretWord.includes(letter);
-                    updateButtonState(letter, isCorrect);
-                }
+                    if (guessedLetters.has(letter)) {
+                        const isCorrect = secretWord.includes(letter);
+                        updateButtonState(letter, isCorrect);
+                    }
+                });
+                keyboard.appendChild(rowDiv);
             });
         }
 
@@ -404,7 +485,7 @@
         function checkGameStatus() {
             // 単語のすべての文字が推測されたかチェック
             const isWordGuessed = [...secretWord].every(letter => guessedLetters.has(letter));
-
+            
             if (isWordGuessed) {
                 gameStatus = 'won';
                 endGame(true);
@@ -418,21 +499,21 @@
             stopTimer();
             // キーボードを無効化
             Array.from(keyboard.querySelectorAll('button')).forEach(btn => btn.disabled = true);
-
+            
             if (isWin) {
                 currentStreak++;
                 localStorage.setItem('hangmanCurrentStreak', currentStreak.toString());
                 updateModeUI();
 
                 const targetStreak = (currentMode === GAME_MODES.STREAK_5 || currentMode === GAME_MODES.TIME_ATTACK_5) ? 5 : 10;
-
+                
                 if (currentMode === GAME_MODES.ENDLESS || currentStreak >= targetStreak) {
                     // 1. ENDLESS Mode: Show modal, wait for restart (no auto-continue).
                     // 2. STREAK Mode, Target Met: Show final modal, wait for restart (no auto-continue).
-
+                    
                     let winMessage;
                     let detailText;
-
+                    
                     if (currentMode === GAME_MODES.ENDLESS) {
                         winMessage = `🎉 ${currentStreak}連勝達成! 🎉`;
                         detailText = '続けて次の単語に挑戦しましょう！';
@@ -444,7 +525,7 @@
                             winMessage = `🎉 ${targetStreak}連勝達成! 🎉`;
                             detailText = '見事に目標をクリアしました！';
                         }
-
+                        
                         // 目標達成後は連勝とタイマーをリセット
                         currentStreak = 0;
                         elapsedTime = 0;
@@ -452,7 +533,7 @@
                         localStorage.setItem('hangmanElapsedTime', '0');
                         updateModeUI();
                     }
-
+                    
                     showMessage(winMessage, detailText);
                     restartButton.disabled = false;
 
@@ -461,14 +542,14 @@
                     const winMessage = `✅ ${currentStreak}連勝! (あと${targetStreak - currentStreak}回) ✅`;
                     const detailText = '次の単語へ！';
                     // 1.5秒後に自動で次のゲームを開始
-                    showMessage(winMessage, detailText, 1500);
+                    showMessage(winMessage, detailText, 1500); 
                     restartButton.disabled = true; // 自動で次が始まるため無効化
                 }
 
             } else { // 敗北
                 const lossMessage = (currentStreak > 0) ? `連勝ストップ...` : `💀 ゲームオーバー 💀`;
                 let detailText = `残念！正解の単語は「${secretWord}」でした。`;
-
+                
                 // 連勝をリセット
                 currentStreak = 0;
                 elapsedTime = 0;
@@ -481,7 +562,14 @@
                 }
 
                 showMessage(lossMessage, detailText);
-                updateHangedMan();
+                
+                // 敗北時は絞首台のパーツを全て表示する
+                document.getElementById("part-gallows-base").classList.remove('hidden');
+                document.getElementById("part-gallows-pole").classList.remove('hidden');
+                document.getElementById("part-gallows-beam").classList.remove('hidden');
+                document.getElementById("part-gallows-rope").classList.remove('hidden');
+                humanParts.forEach(id => document.getElementById(id).classList.remove('hidden'));
+                
                 wordDisplay.textContent = [...secretWord].join('');
                 wordDisplay.classList.add('text-red-500');
                 restartButton.disabled = false;
@@ -502,7 +590,7 @@
             messageModal.classList.remove('hidden');
             // 'opacity-0' を付けてトランジションを有効化
             messageModal.classList.add('flex', 'opacity-0');
-
+            
             // Auto-close logic
             if (autoCloseDuration > 0) {
                 // 自動で閉じる場合はボタンを非表示
@@ -519,7 +607,7 @@
                 messageBox.classList.remove('scale-95', 'opacity-0');
                 messageBox.classList.add('scale-100', 'opacity-100');
             }, 10);
-
+            
             // 自動で閉じて次のゲームを開始する処理
             if (autoCloseDuration > 0) {
                  setTimeout(() => {
@@ -528,7 +616,7 @@
                 }, autoCloseDuration);
             }
         }
-
+        
         function hideMessage() {
             messageBox.classList.remove('scale-100', 'opacity-100');
             messageBox.classList.add('scale-95', 'opacity-0');
@@ -538,7 +626,7 @@
                 messageModal.classList.remove('flex');
             }, 300);
         }
-
+        
         function showRulesModal() {
             rulesModal.classList.remove('hidden');
             rulesModal.classList.add('flex', 'opacity-0');
@@ -549,7 +637,7 @@
                 rulesBox.classList.add('scale-100', 'opacity-100');
             }, 10);
         }
-
+        
         function hideRulesModal() {
             rulesBox.classList.remove('scale-100', 'opacity-100');
             rulesBox.classList.add('scale-95', 'opacity-0');
@@ -573,7 +661,7 @@
 
 
         // --- イベントリスナー ---
-
+        
         restartButton.addEventListener('click', () => {
             initializeGame();
         });
@@ -590,7 +678,7 @@
                     hideRulesModal();
                 }
             }
-
+            
             // キーボード入力に対応
             const key = e.key.toUpperCase();
             if (key.length === 1 && key >= 'A' && key <= 'Z' && gameStatus === 'playing') {
@@ -605,10 +693,10 @@
         window.onload = () => {
             // モードUIの初期化（連勝数、現在のモード表示など）
             updateModeUI();
-
+            
             // ゲームの開始
             initializeGame();
-
+            
             // 初回訪問チェック
             checkFirstVisit();
         };
