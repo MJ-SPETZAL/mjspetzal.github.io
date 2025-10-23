@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HANGED MAN</title>
+    <!-- Tailwind CSS CDNの読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Interフォントの設定 -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .hangman-part {
+            fill: none;
+            stroke: #2c3e50;
+            stroke-width: 4;
+            stroke-linecap: round;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- コンテナの最大幅を max-w-xl (640px) に拡大 -->
+    <div id="game-container" class="w-full max-w-xl bg-white shadow-2xl rounded-xl p-6 md:p-8 space-y-6">
+        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 text-center border-b-4 border-indigo-500 pb-3">
+            HANGED MAN
+        </h1>
+
+        <!-- ゲームモード選択エリア -->
+        <div class="space-y-3 p-3 bg-gray-50 rounded-lg shadow-inner">
+            <div class="flex flex-wrap gap-2 justify-center" id="mode-selection-buttons">
+                <!-- モード選択ボタンがJSで挿入される -->
+            </div>
+            <p class="text-center text-sm font-medium text-gray-700">現在のモード: <span id="current-mode-display" class="font-bold text-indigo-600"></span></p>
+        </div>
+
+        <!-- ゲームボードエリア -->
+        <div class="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-6">
+
+            <!-- ハングマン描画エリア (SVG) -->
+            <div class="flex-shrink-0 w-full md:w-1/2 flex justify-center items-center">
+                <svg id="hangman-svg" viewBox="0 0 100 120" class="w-40 h-48 md:w-48 md:h-60">
+                    <!-- 絞首台 (常に表示) -->
+                    <line x1="10" y1="110" x2="90" y2="110" class="hangman-part" /> <!-- 地面 -->
+                    <line x1="20" y1="110" x2="20" y2="10" class="hangman-part" /> <!-- 縦柱 -->
+                    <line x1="20" y1="10" x2="70" y2="10" class="hangman-part" /> <!-- 横梁 -->
+                    <line x1="70" y1="10" x2="70" y2="20" class="hangman-part" /> <!-- 縄 -->
+
+                    <!-- 間違いに応じて表示されるパーツ (0:台座/縄, 1:頭, 2:体, 3:左腕, 4:右腕, 5:左足, 6:右足) -->
+                    <!-- 1: 頭 -->
+                    <circle id="part-head" cx="70" cy="30" r="10" class="hangman-part hidden" />
+                    <!-- 2: 体 -->
+                    <line id="part-body" x1="70" y1="40" x2="70" y2="80" class="hangman-part hidden" />
+                    <!-- 3: 左腕 -->
+                    <line id="part-larm" x1="70" y1="50" x2="60" y2="65" class="hangman-part hidden" />
+                    <!-- 4: 右腕 -->
+                    <line id="part-rarm" x1="70" y1="50" x2="80" y2="65" class="hangman-part hidden" />
+                    <!-- 5: 左足 -->
+                    <line id="part-lleg" x1="70" y1="80" x2="60" y2="95" class="hangman-part hidden" />
+                    <!-- 6: 右足 -->
+                    <line id="part-rleg" x1="70" y1="80" x2="80" y2="95" class="hangman-part hidden" />
+                </svg>
+            </div>
+
+            <!-- 単語と情報エリア -->
+            <div class="w-full md:w-1/2 space-y-4">
+                <!-- 単語表示エリア -->
+                <div id="word-display" class="text-4xl md:text-5xl font-mono tracking-widest text-center text-indigo-700 p-4 bg-indigo-50 rounded-lg shadow-inner border-2 border-indigo-200 whitespace-nowrap">
+                    <!-- 単語のアンダースコアが表示される -->
+                </div>
+
+                <!-- 連勝・タイマー表示 -->
+                <div class="flex justify-between text-lg text-gray-600 font-semibold">
+                    <p>
+                        連勝: <span id="current-streak-display" class="font-bold text-yellow-600">0</span>
+                    </p>
+                    <p id="timer-display-container" class="hidden">
+                        時間: <span id="timer-display" class="font-bold text-red-600">0.00</span>s
+                    </p>
+                    <p>
+                        間違い残り: <span id="remaining-guesses" class="font-bold text-red-500">6</span>
+                    </p>
+                </div>
+
+                <div class="bg-gray-100 p-3 rounded-lg shadow-inner">
+                    <h3 class="font-semibold text-gray-700 mb-1">使った文字:</h3>
+                    <div id="guessed-letters-list" class="text-xl font-mono break-words min-h-[1.5rem]">
+                        <!-- 推測された文字が表示される -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- キーボードエリア -->
+        <div id="keyboard" class="grid grid-cols-7 gap-1 md:gap-2 p-3 bg-gray-50 rounded-lg shadow-md">
+            <!-- JavaScriptでアルファベットボタンが挿入される -->
+        </div>
+
+        <!-- リスタートボタン -->
+        <div class="text-center">
+            <button id="restart-button" class="px-6 py-3 bg-green-500 text-white font-bold rounded-full shadow-lg hover:bg-green-600 transition duration-150 transform hover:scale-105 disabled:bg-gray-400" disabled>
+                新しいゲームを始める
+            </button>
+        </div>
+    </div>
+
+    <!-- 共通カスタムメッセージモーダル -->
+    <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm text-center transform transition-transform duration-300 scale-95 opacity-0" id="message-box">
+            <h2 id="message-title" class="text-3xl font-bold mb-3 text-indigo-600"></h2>
+            <p id="message-text" class="text-lg text-gray-700 mb-4"></p>
+            <button id="modal-close-button" class="px-5 py-2 bg-indigo-500 text-white font-semibold rounded-lg hover:bg-indigo-600 transition duration-150">閉じる</button>
+        </div>
+    </div>
+
+    <!-- 新規：ゲームルールモーダル -->
+    <div id="rules-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg transform transition-transform duration-300 scale-95 opacity-0" id="rules-box">
+            <h2 class="text-3xl font-bold mb-4 text-indigo-700 text-center">💡 ゲームルール 💡</h2>
+            <div class="space-y-4 text-gray-700">
+                <p>ハングマン（Hanged Man）は、隠された単語を推測するゲームです。アルファベットを一つずつ選んで、単語に含まれているか推測します。</p>
+
+                <h3 class="text-xl font-semibold border-b pb-1 text-gray-800">遊び方</h3>
+                <ul class="list-disc list-inside space-y-2 ml-4">
+                    <li>単語に含まれる文字を推測すると、その文字が単語内に表示されます。</li>
+                    <li>推測した文字が単語に含まれていない場合、<b>絞首台のパーツが一つ追加</b>されます。</li>
+                    <li>パーツが<b>6つ完成する前に</b>単語をすべて当てれば<b>勝利</b>です！</li>
+                </ul>
+
+                <h3 class="text-xl font-semibold border-b pb-1 text-gray-800">ゲームモード</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div class="p-2 bg-indigo-50 rounded-lg">
+                        <p class="font-bold text-indigo-600">エンドレスモード</p>
+                        <p>ゲームオーバーになるまで連勝に挑戦します。連勝記録を伸ばしましょう！</p>
+                    </div>
+                    <div class="p-2 bg-indigo-50 rounded-lg">
+                        <p class="font-bold text-indigo-600">5連勝 / 10連勝モード</p>
+                        <p>指定された回数（5回または10回）連続で勝利を目指します。途中で敗北すると連勝がリセットされます。</p>
+                    </div>
+                    <div class="p-2 bg-indigo-50 rounded-lg col-span-full">
+                        <p class="font-bold text-indigo-600">5連勝 (タイムアタックモード)</p>
+                        <p>5連勝を達成するまでの<b>合計時間</b>を競います。スピードと正確さが重要です！</p>
+                    </div>
+                </div>
+            </div>
+            <button id="rules-close-button" class="mt-6 w-full px-5 py-2 bg-indigo-500 text-white font-semibold rounded-lg hover:bg-indigo-600 transition duration-150">閉じる</button>
+        </div>
+    </div>
+
+
+    <!-- 単語リスト (隠すために圧縮して移動) -->
+    <script>
+        const words = ["APPLE", "ORANGE", "GRAPE", "LEMON", "PEACH", "PLUM", "CHERRY", "MANGO", "PAPAYA", "LITCHI", "APRICOT", "RAISIN", "OLIVE", "BERRY", "MELON", "PUMPKIN", "CABBAGE", "ONION", "CARROT", "RADISH", "TOMATO", "POTATO", "GARLIC", "BROCCOLI", "SPINACH", "CORN", "SUGAR", "FLOUR", "SAUCE", "PIZZA", "BURGER", "BACON", "STEAK", "CHICKEN", "SUSHI", "PASTA", "COFFEE", "TEA", "JUICE", "CREAM", "CHEESE", "BREAD", "WINE", "BEER", "VODKA", "WHISKY", "GINGER", "CHILI", "CLOVES", "PEPPER", "SALMON", "TUNA", "SHRIMP", "SQUID", "MUTTON", "NOODLE", "WAFFLE", "TOAST", "BISCUIT", "COOKIE", "CANDY", "SODA", "WATER", "YOGURT", "HONEY", "SYRUP", "MUSHROOM", "TIGER", "LION", "ZEBRA", "BEAR", "SHARK", "WOLF", "SNAKE", "MOUSE", "EAGLE", "FROG", "CAT", "DOG", "HORSE", "DEER", "SHEEP", "GOAT", "PANDA", "KOALA", "MONKEY", "GIRAFFE", "ELEPHANT", "RHINO", "HIPPO", "SEAL", "WALRUS", "KANGAROO", "PARROT", "OWL", "CROW", "DOVE", "SWAN", "DUCK", "CHICK", "FOX", "RACCOON", "SQUIRREL", "RABBIT", "BADGER", "OTTER", "WEASEL", "FERRET", "LIZARD", "TURTLE", "CRAB", "LOBSTER", "BEE", "WASP", "ANT", "BUG", "MOTH", "FLY", "WORM", "SLOTH", "COUGAR", "FALCON", "VULTURE", "HERON", "EMU", "KIWI", "ALBATROSS", "PENGUIN", "DOLPHIN", "WHALE", "OCTOPUS", "JELLY", "STARFISH", "EEL", "CRICKET", "TERRIER", "RIVER", "MOUNT", "BEACH", "FOREST", "CLOUD", "OCEAN", "STORM", "EARTH", "LAKE", "SHORE", "SUN", "MOON", "STAR", "SKY", "RAIN", "SNOW", "WIND", "FOG", "ICE", "ROCK", "SAND", "CAVE", "DESERT", "VALLEY", "HILL", "MARSH", "SWAMP", "CREEK", "POND", "GLACIER", "VOLCANO", "ISLAND", "CANYON", "CLIFF", "CEMENT", "METAL", "STONE", "GRASS", "PLANT", "FLOWER", "GARDEN", "SHRUB", "TREES", "BRANCH", "LEAVES", "ROOT", "BARK", "SEED", "FRUIT", "FIELD", "MEADOW", "FARM", "HAY", "WHEAT", "GRASS", "THORN", "STREAM", "GULF", "BAY", "TUNDRA", "SAVANNA", "TEMPEST", "THUNDER", "LIGHT", "DUST", "SPACE", "VAPOR", "COAL", "OIL", "GAS", "HOUSE", "TABLE", "CHAIR", "DESK", "SOFA", "LAMP", "DOOR", "CLOCK", "SHELF", "BED", "PILLOW", "BLANKET", "TOWEL", "SOAP", "SHOWER", "TOILET", "SINK", "MIRROR", "OVEN", "STOVE", "FRIDGE", "RADIO", "PHONE", "WATCH", "KNIFE", "FORK", "SPOON", "PLATE", "BOWL", "GLASS", "CUP", "BOTTLE", "BOX", "CHEST", "TRUNK", "PAINT", "BRUSH", "PENCIL", "PAPER", "BOOK", "NOTE", "DIARY", "COIN", "MONEY", "PURSE", "WALLET", "GLOVE", "SHIRT", "JACKET", "SCARF", "SHOES", "BOOTS", "DRESS", "SKIRT", "BELT", "HAT", "COAT", "VEST", "SOCKS", "TIES", "HANGER", "CART", "WAGON", "MOTOR", "WHEEL", "AXLE", "TRAIN", "YACHT", "SHIP", "PLANE", "BIKE", "BICYCLE", "GEMINI", "SCRIPT", "MODEL", "CODE", "QUERY", "LEARN", "GREAT", "FLASH", "BRAIN", "SMART", "HAPPY", "FUNNY", "SILLY", "BRAVE", "SOBER", "QUIET", "LOUD", "QUICK", "SLOW", "BRIGHT", "DARK", "CALM", "WARM", "COLD", "SMALL", "LARGE", "TINY", "HUGE", "EMPTY", "FULL", "FIRST", "LAST", "BETTER", "WORSE", "READY", "SIMPLE", "COMPLEX", "TRUTH", "FAKE", "LOGIC", "MAGIC", "HUMAN", "ROBOT", "VIRUS", "DATA", "INPUT", "OUTPUT", "DEBUG", "CLICK", "PRINT", "DRIVE", "EMAIL", "CHAT", "VOICE", "IMAGE", "VIDEO", "SCREEN", "KEYPAD", "POWER", "CYCLE", "VALUE", "PRIME", "RATIO", "THEME", "STYLE", "FANCY", "PLAIN", "ROUGH", "SMOOTH", "SHARP", "DULL", "CLOSE", "OPEN", "START", "END", "BEGIN", "FINAL", "CHANCE", "ERROR", "GUARD", "PEACE", "WAR", "UNITY", "GROUP", "PARTY", "UNION", "FORCE", "SPEED", "VELOCITY", "ACCEL", "MASS", "VOLUME", "DENSITY", "FLUID", "SOLID", "GAS", "ENERGY", "FIELD", "WAVE", "PARTICLE", "ATOMIC", "SOLAR", "LUNAR", "GLOBAL", "LOCAL", "REMOTE", "OFFLINE", "ONLINE", "MOBILE", "FIBER", "SENSOR", "PROMPT", "TOKEN", "CACHE", "BUFFER", "ARRAY", "STACK", "QUEUE", "INDEX", "RANGE", "BOUNDS", "CONST", "PUBLIC", "PRIVATE", "ACCESS", "SYSTEM", "SERVER", "CLIENT", "ROUTER", "SWITCH", "CABLE", "WIRE", "SIGNAL", "AUDIO", "MUSIC", "DRAFT", "ESSAY", "REPORT", "GRADE", "CLASS", "STUDY", "TEACH", "WRITE", "READ", "MEMORY", "DREAM", "FUTURE", "PAST", "TODAY", "NIGHT", "MORNING", "AFTER", "BEFORE", "UNTIL", "WHILE", "JUMP", "RUN", "WALK", "WRITE", "THINK", "SPEAK", "POWER", "SLEEP", "FIGHT", "DANCE", "SING", "LISTEN", "TALK", "READ", "WATCH", "BUILD", "CREATE", "DRAW", "PAINT", "COOK", "EAT", "DRINK", "WASH", "CLEAN", "DRIVE", "RIDE", "FLY", "SWIM", "TEACH", "STUDY", "LEARN", "WORK", "START", "STOP", "OPEN", "CLOSE", "FIND", "SEARCH", "HIDE", "SHOW", "LOOK", "HEAR", "SMELL", "TASTE", "TOUCH", "PULL", "PUSH", "CARRY", "WEAR", "THROW", "CATCH", "CALL", "SEND", "MAIL", "TEXT", "WAIT", "HURRY", "QUICK", "SLOW", "ENTER", "EXIT", "CLIMB", "FALL", "RISE", "KICK", "GRASP", "REACH", "SOLVE", "PROVE", "CHECK", "SHARE", "VOTE", "AGREE", "RELOAD"];
+    </script>
+
+
+    <script>
+        // --- 設定と定数 ---
+        // 単語リスト (const words) はメインスクリプトの外に移動しました
+        const maxIncorrectGuesses = 6;
+        const hangmanParts = ["part-head", "part-body", "part-larm", "part-rarm", "part-lleg", "part-rleg"];
+
+        const GAME_MODES = {
+            ENDLESS: 'エンドレス',
+            STREAK_5: '5連勝',
+            STREAK_10: '10連勝',
+            TIME_ATTACK_5: '5連勝 (TA)'
+        };
+
+        // --- ゲーム状態変数 ---
+        let secretWord;
+        let guessedLetters;
+        let incorrectGuesses;
+        let gameStatus; // 'playing', 'won', 'lost'
+
+        // モード/連勝/タイマー関連
+        let currentMode = localStorage.getItem('hangmanGameMode') || GAME_MODES.ENDLESS;
+        let currentStreak = parseInt(localStorage.getItem('hangmanCurrentStreak') || '0', 10);
+        let timerInterval;
+        let startTime;
+        let elapsedTime = parseFloat(localStorage.getItem('hangmanElapsedTime') || '0');
+
+        // DOM要素の取得
+        const wordDisplay = document.getElementById('word-display');
+        const keyboard = document.getElementById('keyboard');
+        const guessedLettersList = document.getElementById('guessed-letters-list');
+        const remainingGuessesSpan = document.getElementById('remaining-guesses');
+        const restartButton = document.getElementById('restart-button');
+        const messageModal = document.getElementById('message-modal');
+        const messageBox = document.getElementById('message-box');
+        const messageTitle = document.getElementById('message-title');
+        const messageText = document.getElementById('message-text');
+        const modalCloseButton = document.getElementById('modal-close-button');
+        const rulesModal = document.getElementById('rules-modal');
+        const rulesBox = document.getElementById('rules-box');
+        const rulesCloseButton = document.getElementById('rules-close-button');
+        const modeSelectionButtons = document.getElementById('mode-selection-buttons');
+        const currentModeDisplay = document.getElementById('current-mode-display');
+        const currentStreakDisplay = document.getElementById('current-streak-display');
+        const timerDisplay = document.getElementById('timer-display');
+        const timerDisplayContainer = document.getElementById('timer-display-container');
+
+
+        // --- 初期化とリセット ---
+        function initializeGame() {
+            // 単語の選択
+            secretWord = words[Math.floor(Math.random() * words.length)];
+            guessedLetters = new Set();
+            incorrectGuesses = 0;
+            gameStatus = 'playing';
+
+            // UIの初期化
+            updateModeUI();
+            updateWordDisplay();
+            updateHangedMan();
+            updateGuessedLettersList();
+            updateRemainingGuesses();
+            createKeyboard();
+            restartButton.disabled = true;
+            wordDisplay.classList.remove('text-red-500');
+
+            // タイマーの管理
+            stopTimer();
+            if (currentMode === GAME_MODES.TIME_ATTACK_5) {
+                startTimer();
+                timerDisplayContainer.classList.remove('hidden');
+            } else {
+                timerDisplayContainer.classList.add('hidden');
+            }
+        }
+
+        // --- モード管理 ---
+
+        /**
+         * モード選択ボタンを生成し、イベントリスナーを設定する
+         */
+        function createModeSelectionButtons() {
+            modeSelectionButtons.innerHTML = '';
+            Object.values(GAME_MODES).forEach(mode => {
+                const button = document.createElement('button');
+                button.textContent = mode;
+                button.classList.add(
+                    'px-3', 'py-1', 'text-xs', 'font-semibold', 'rounded-full', 'transition', 'duration-150',
+                    'border-2'
+                );
+                button.setAttribute('data-mode', mode);
+
+                if (mode === currentMode) {
+                    button.classList.add('bg-indigo-500', 'text-white', 'border-indigo-600');
+                } else {
+                    button.classList.add('bg-white', 'text-indigo-600', 'border-indigo-200', 'hover:bg-indigo-50');
+                }
+
+                button.addEventListener('click', () => setGameMode(mode));
+                modeSelectionButtons.appendChild(button);
+            });
+        }
+
+        /**
+         * ゲームモードを設定し、リセットする
+         * @param {string} mode - 選択されたゲームモード
+         */
+        function setGameMode(mode) {
+            currentMode = mode;
+            localStorage.setItem('hangmanGameMode', mode);
+
+            // モード変更時は連勝とタイマーをリセット
+            currentStreak = 0;
+            elapsedTime = 0;
+            localStorage.setItem('hangmanCurrentStreak', '0');
+            localStorage.setItem('hangmanElapsedTime', '0');
+
+            updateModeUI();
+            initializeGame();
+        }
+
+        /**
+         * モード関連のUIを更新する
+         */
+        function updateModeUI() {
+            currentModeDisplay.textContent = currentMode;
+            currentStreakDisplay.textContent = currentStreak;
+            timerDisplay.textContent = elapsedTime.toFixed(2);
+            createModeSelectionButtons(); // ボタンの状態も更新
+        }
+
+        // --- タイマーロジック ---
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            // 経過時間から開始時刻を逆算
+            startTime = Date.now() - (elapsedTime * 1000);
+            timerInterval = setInterval(() => {
+                elapsedTime = (Date.now() - startTime) / 1000;
+                timerDisplay.textContent = elapsedTime.toFixed(2);
+                localStorage.setItem('hangmanElapsedTime', elapsedTime.toFixed(2));
+            }, 10);
+        }
+
+        function stopTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = null;
+        }
+
+
+        // --- UI更新関数 (既存) ---
+        function updateWordDisplay() {
+            let display = '';
+            for (const letter of secretWord) {
+                if (guessedLetters.has(letter)) {
+                    display += letter;
+                } else {
+                    display += '_';
+                }
+            }
+            wordDisplay.textContent = display;
+        }
+
+        function updateHangedMan() {
+            for (let i = 0; i < hangmanParts.length; i++) {
+                const part = document.getElementById(hangmanParts[i]);
+                if (i < incorrectGuesses) {
+                    part.classList.remove('hidden');
+                } else {
+                    part.classList.add('hidden');
+                }
+            }
+        }
+
+        function updateGuessedLettersList() {
+            const sortedLetters = Array.from(guessedLetters).sort();
+            guessedLettersList.textContent = sortedLetters.join(', ');
+        }
+
+        function updateRemainingGuesses() {
+            remainingGuessesSpan.textContent = maxIncorrectGuesses - incorrectGuesses;
+            remainingGuessesSpan.classList.toggle('text-red-500', maxIncorrectGuesses - incorrectGuesses <= 2);
+            remainingGuessesSpan.classList.toggle('text-green-500', maxIncorrectGuesses - incorrectGuesses > 2);
+        }
+
+        function createKeyboard() {
+            keyboard.innerHTML = '';
+            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+            alphabet.forEach(letter => {
+                const button = document.createElement('button');
+                button.textContent = letter;
+                button.classList.add(
+                    'p-2', 'md:p-3', 'text-sm', 'md:text-base', 'font-bold', 'rounded-lg', 'shadow-md',
+                    'bg-indigo-500', 'text-white', 'hover:bg-indigo-600', 'transition', 'duration-100',
+                    'active:bg-indigo-700', 'disabled:bg-gray-300', 'disabled:text-gray-500', 'disabled:shadow-none'
+                );
+                button.setAttribute('data-letter', letter);
+                button.addEventListener('click', () => handleGuess(letter, button));
+                keyboard.appendChild(button);
+
+                if (guessedLetters.has(letter)) {
+                    // ボタンの状態を正しく更新するため、handleGuessと同じロジックを再実行する
+                    const isCorrect = secretWord.includes(letter);
+                    updateButtonState(letter, isCorrect);
+                }
+            });
+        }
+
+        function updateButtonState(letter, isCorrect) {
+            const button = document.querySelector(`#keyboard button[data-letter="${letter}"]`);
+            if (button) {
+                button.disabled = true;
+                button.classList.remove('bg-indigo-500', 'hover:bg-indigo-600');
+                if (isCorrect) {
+                    button.classList.add('bg-green-500', 'text-white');
+                } else {
+                    button.classList.add('bg-red-500', 'text-white');
+                }
+            }
+        }
+
+        // --- ゲームロジック ---
+
+        function handleGuess(letter, button) {
+            if (gameStatus !== 'playing' || guessedLetters.has(letter)) {
+                return;
+            }
+
+            guessedLetters.add(letter);
+            updateGuessedLettersList();
+
+            if (secretWord.includes(letter)) {
+                updateWordDisplay();
+                updateButtonState(letter, true);
+            } else {
+                incorrectGuesses++;
+                updateHangedMan();
+                updateRemainingGuesses();
+                updateButtonState(letter, false);
+            }
+
+            checkGameStatus();
+        }
+
+        function checkGameStatus() {
+            // 単語のすべての文字が推測されたかチェック
+            const isWordGuessed = [...secretWord].every(letter => guessedLetters.has(letter));
+
+            if (isWordGuessed) {
+                gameStatus = 'won';
+                endGame(true);
+            } else if (incorrectGuesses >= maxIncorrectGuesses) {
+                gameStatus = 'lost';
+                endGame(false);
+            }
+        }
+
+        function endGame(isWin) {
+            stopTimer();
+            // キーボードを無効化
+            Array.from(keyboard.querySelectorAll('button')).forEach(btn => btn.disabled = true);
+
+            if (isWin) {
+                currentStreak++;
+                localStorage.setItem('hangmanCurrentStreak', currentStreak.toString());
+                updateModeUI();
+
+                const targetStreak = (currentMode === GAME_MODES.STREAK_5 || currentMode === GAME_MODES.TIME_ATTACK_5) ? 5 : 10;
+
+                if (currentMode === GAME_MODES.ENDLESS || currentStreak >= targetStreak) {
+                    // 1. ENDLESS Mode: Show modal, wait for restart (no auto-continue).
+                    // 2. STREAK Mode, Target Met: Show final modal, wait for restart (no auto-continue).
+
+                    let winMessage;
+                    let detailText;
+
+                    if (currentMode === GAME_MODES.ENDLESS) {
+                        winMessage = `🎉 ${currentStreak}連勝達成! 🎉`;
+                        detailText = '続けて次の単語に挑戦しましょう！';
+                    } else { // Target met
+                         if (currentMode === GAME_MODES.TIME_ATTACK_5) {
+                            winMessage = `🏆 5連勝タイムアタック完了! 🏆`;
+                            detailText = `合計タイム: ${elapsedTime.toFixed(2)}秒！新記録を目指しましょう。`;
+                        } else {
+                            winMessage = `🎉 ${targetStreak}連勝達成! 🎉`;
+                            detailText = '見事に目標をクリアしました！';
+                        }
+
+                        // 目標達成後は連勝とタイマーをリセット
+                        currentStreak = 0;
+                        elapsedTime = 0;
+                        localStorage.setItem('hangmanCurrentStreak', '0');
+                        localStorage.setItem('hangmanElapsedTime', '0');
+                        updateModeUI();
+                    }
+
+                    showMessage(winMessage, detailText);
+                    restartButton.disabled = false;
+
+                } else {
+                    // 3. STREAK Mode, Target NOT Met: Show brief success and auto-continue.
+                    const winMessage = `✅ ${currentStreak}連勝! (あと${targetStreak - currentStreak}回) ✅`;
+                    const detailText = '次の単語へ！';
+                    // 1.5秒後に自動で次のゲームを開始
+                    showMessage(winMessage, detailText, 1500);
+                    restartButton.disabled = true; // 自動で次が始まるため無効化
+                }
+
+            } else { // 敗北
+                const lossMessage = (currentStreak > 0) ? `連勝ストップ...` : `💀 ゲームオーバー 💀`;
+                let detailText = `残念！正解の単語は「${secretWord}」でした。`;
+
+                // 連勝をリセット
+                currentStreak = 0;
+                elapsedTime = 0;
+                localStorage.setItem('hangmanCurrentStreak', '0');
+                localStorage.setItem('hangmanElapsedTime', '0');
+                updateModeUI();
+
+                if (currentMode !== GAME_MODES.ENDLESS) {
+                    detailText += ` ${currentMode}モードに再挑戦しましょう。`;
+                }
+
+                showMessage(lossMessage, detailText);
+                updateHangedMan();
+                wordDisplay.textContent = [...secretWord].join('');
+                wordDisplay.classList.add('text-red-500');
+                restartButton.disabled = false;
+            }
+        }
+
+        // --- モーダル表示機能 ---
+
+        /**
+         * カスタムメッセージモーダルを表示する
+         * @param {string} title - タイトル
+         * @param {string} text - メッセージ本文
+         * @param {number} [autoCloseDuration=0] - 自動で閉じるまでの時間（ミリ秒）。0の場合は手動で閉じる。
+         */
+        function showMessage(title, text, autoCloseDuration = 0) {
+            messageTitle.textContent = title;
+            messageText.textContent = text;
+            messageModal.classList.remove('hidden');
+            // 'opacity-0' を付けてトランジションを有効化
+            messageModal.classList.add('flex', 'opacity-0');
+
+            // Auto-close logic
+            if (autoCloseDuration > 0) {
+                // 自動で閉じる場合はボタンを非表示
+                modalCloseButton.classList.add('hidden');
+            } else {
+                // 手動で閉じる場合はボタンを表示し、アクションを設定
+                modalCloseButton.classList.remove('hidden');
+                modalCloseButton.onclick = hideMessage;
+            }
+
+            // トランジション開始
+            setTimeout(() => {
+                messageModal.classList.remove('opacity-0');
+                messageBox.classList.remove('scale-95', 'opacity-0');
+                messageBox.classList.add('scale-100', 'opacity-100');
+            }, 10);
+
+            // 自動で閉じて次のゲームを開始する処理
+            if (autoCloseDuration > 0) {
+                 setTimeout(() => {
+                    hideMessage();
+                    initializeGame(); // 次のゲームを開始
+                }, autoCloseDuration);
+            }
+        }
+
+        function hideMessage() {
+            messageBox.classList.remove('scale-100', 'opacity-100');
+            messageBox.classList.add('scale-95', 'opacity-0');
+
+            setTimeout(() => {
+                messageModal.classList.add('hidden');
+                messageModal.classList.remove('flex');
+            }, 300);
+        }
+
+        function showRulesModal() {
+            rulesModal.classList.remove('hidden');
+            rulesModal.classList.add('flex', 'opacity-0');
+
+            setTimeout(() => {
+                rulesModal.classList.remove('opacity-0');
+                rulesBox.classList.remove('scale-95', 'opacity-0');
+                rulesBox.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function hideRulesModal() {
+            rulesBox.classList.remove('scale-100', 'opacity-100');
+            rulesBox.classList.add('scale-95', 'opacity-0');
+
+            setTimeout(() => {
+                rulesModal.classList.add('hidden');
+                rulesModal.classList.remove('flex');
+            }, 300);
+        }
+
+        // --- 初回訪問チェック ---
+        function checkFirstVisit() {
+            const hasVisited = localStorage.getItem('hangmanHasVisited');
+            if (!hasVisited) {
+                // 初回訪問時のみルールを表示
+                showRulesModal();
+                // 訪問フラグを設定
+                localStorage.setItem('hangmanHasVisited', 'true');
+            }
+        }
+
+
+        // --- イベントリスナー ---
+
+        restartButton.addEventListener('click', () => {
+            initializeGame();
+        });
+
+        rulesCloseButton.addEventListener('click', hideRulesModal);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                if (messageModal.classList.contains('flex') && !modalCloseButton.classList.contains('hidden')) {
+                    // メッセージモーダルが表示中で、かつボタンが非表示ではない場合（手動閉じが可能な場合）
+                    hideMessage();
+                } else if (rulesModal.classList.contains('flex')) {
+                    // ルールモーダルが表示中の場合
+                    hideRulesModal();
+                }
+            }
+
+            // キーボード入力に対応
+            const key = e.key.toUpperCase();
+            if (key.length === 1 && key >= 'A' && key <= 'Z' && gameStatus === 'playing') {
+                const button = document.querySelector(`#keyboard button[data-letter="${key}"]`);
+                if (button && !button.disabled) {
+                    handleGuess(key, button);
+                }
+            }
+        });
+
+        // --- 起動 ---
+        window.onload = () => {
+            // モードUIの初期化（連勝数、現在のモード表示など）
+            updateModeUI();
+
+            // ゲームの開始
+            initializeGame();
+
+            // 初回訪問チェック
+            checkFirstVisit();
+        };
+
+    </script>
+
+</body>
+</html>
