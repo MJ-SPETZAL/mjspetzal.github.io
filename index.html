@@ -3,37 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HANGED MAN</title>
-    <!-- Tailwind CSS CDNの読み込み -->
+    <title>HANGED MAN - ARCHIVE</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Interフォントの設定 -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f7f9fb;
+            margin: 0;
+            overflow-x: hidden;
         }
-        /* SVGの描画スタイル */
         .hangman-part {
             fill: none;
             stroke: #2c3e50;
             stroke-width: 4;
             stroke-linecap: round;
         }
-        /* QWERTY配列のためにキーボードのグリッド設定を解除し、flexベースにする */
         #keyboard {
             display: flex;
             flex-direction: column;
-            gap: 4px; /* gap-1 md:gap-2 に相当 */
+            gap: 4px;
             padding: 12px;
-            background-color: #f9fafb; /* bg-gray-50 */
-            border-radius: 8px; /* rounded-lg */
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); /* shadow-md */
+            background-color: #f9fafb;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
         .key-row {
             display: flex;
             justify-content: center;
-            gap: 4px; /* gap-1 md:gap-2 に相当 */
+            gap: 4px;
         }
         .key-button {
             flex-grow: 1;
@@ -45,664 +43,282 @@
             transition: all 0.15s;
         }
         @media (min-width: 768px) {
-            .key-button {
-                padding: 12px 16px;
-                font-size: 16px;
-            }
+            .key-button { padding: 12px 16px; font-size: 16px; }
         }
-        /* コンテナの背景に subtle gradient を適用 */
-        #game-container {
-            background: linear-gradient(145deg, #ffffff, #f0f4f8);
-        }
-        /* ハングマン描画エリアに影を付けて立体感を出す */
+        #game-container { background: linear-gradient(145deg, #ffffff, #f0f4f8); }
         #hangman-svg-container {
-             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
              border-radius: 12px;
              background-color: #fff;
              padding: 8px;
+        }
+
+        /* --- ARG演出用のスタイル --- */
+        #arg-curtain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 0;
+            background-color: black;
+            transition: height 2s ease-in-out;
+            z-index: 9998;
+            pointer-events: none;
+        }
+        #arg-curtain.active {
+            height: 100vh;
+            pointer-events: all;
+        }
+        #arg-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background-color: black;
+            color: #00FF00;
+            display: none;
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 20px;
+            text-align: center;
+        }
+        .glitch { animation: glitch 1s linear infinite; }
+        @keyframes glitch {
+            2%, 64% { transform: translate(2px, 0) skew(0deg); }
+            4%, 60% { transform: translate(-2px, 0) skew(0deg); }
+            62% { transform: translate(0, 0) skew(5deg); }
         }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
-    <!-- コンテナの最大幅を max-w-xl (640px) に拡大 -->
     <div id="game-container" class="w-full max-w-xl shadow-2xl rounded-xl p-6 md:p-8 space-y-6">
-        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 text-center border-b-4 border-indigo-500 pb-3">
-            HANGED MAN
-        </h1>
-
-        <!-- ゲームモード選択エリア -->
+        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 text-center border-b-4 border-indigo-500 pb-3">HANGED MAN</h1>
+        
         <div class="space-y-3 p-3 bg-gray-50 rounded-lg shadow-inner">
-            <div class="flex flex-wrap gap-2 justify-center" id="mode-selection-buttons">
-                <!-- モード選択ボタンがJSで挿入される -->
-            </div>
+            <div class="flex flex-wrap gap-2 justify-center" id="mode-selection-buttons"></div>
             <p class="text-center text-sm font-medium text-gray-700">現在のモード: <span id="current-mode-display" class="font-bold text-indigo-600"></span></p>
         </div>
 
-        <!-- ゲームボードエリア -->
         <div class="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-6">
-            
-            <!-- ハングマン描画エリア (SVG) -->
             <div id="hangman-svg-container" class="flex-shrink-0 w-full md:w-1/2 flex justify-center items-center">
                 <svg id="hangman-svg" viewBox="0 0 100 120" class="w-40 h-48 md:w-48 md:h-60">
-                    <!-- 絞首台 (間違いに応じて表示されるパーツ 1-8) -->
-                    <!-- 1. 地面 (単独ステップ) -->
                     <line id="part-gallows-base" x1="10" y1="110" x2="90" y2="110" class="hangman-part hidden" /> 
-                    
-                    <!-- 2. 縦柱 (2ステップ目で一括表示されるグループの一部) -->
                     <line id="part-gallows-pole" x1="20" y1="110" x2="20" y2="10" class="hangman-part hidden" /> 
-                    <line id="part-gallows-beam" x1="20" y1="10" x2="70" y2="10" class="hangman-part hidden" /> <!-- 2. 横梁 -->
-                    <line id="part-gallows-rope" x1="70" y1="10" x2="70" y2="20" class="hangman-part hidden" /> <!-- 2. 縄 -->
-                    
-                    <!-- 人体 (間違いに応じて表示されるパーツ 3-8) -->
-                    <!-- 3. 頭 -->
+                    <line id="part-gallows-beam" x1="20" y1="10" x2="70" y2="10" class="hangman-part hidden" />
+                    <line id="part-gallows-rope" x1="70" y1="10" x2="70" y2="20" class="hangman-part hidden" />
                     <circle id="part-head" cx="70" cy="30" r="10" class="hangman-part hidden" />
-                    <!-- 4. 体 -->
                     <line id="part-body" x1="70" y1="40" x2="70" y2="80" class="hangman-part hidden" />
-                    <!-- 5. 左腕 -->
                     <line id="part-larm" x1="70" y1="50" x2="60" y2="65" class="hangman-part hidden" />
-                    <!-- 6. 右腕 -->
                     <line id="part-rarm" x1="70" y1="50" x2="80" y2="65" class="hangman-part hidden" />
-                    <!-- 7. 左足 (新規追加) -->
                     <line id="part-lleg" x1="70" y1="80" x2="60" y2="95" class="hangman-part hidden" />
-                    <!-- 8. 右足 (新規追加) -->
                     <line id="part-rleg" x1="70" y1="80" x2="80" y2="95" class="hangman-part hidden" />
                 </svg>
             </div>
 
-            <!-- 単語と情報エリア -->
             <div class="w-full md:w-1/2 space-y-4">
-                <!-- 単語表示エリア -->
-                <div id="word-display" class="text-4xl md:text-5xl font-mono tracking-widest text-center text-indigo-700 p-4 bg-indigo-50 rounded-lg shadow-inner border-2 border-indigo-200 whitespace-nowrap hover:shadow-lg transition duration-200">
-                    <!-- 単語のアンダースコアが表示される -->
-                </div>
-                
-                <!-- 連勝・タイマー表示 -->
+                <div id="word-display" class="text-4xl md:text-5xl font-mono tracking-widest text-center text-indigo-700 p-4 bg-indigo-50 rounded-lg shadow-inner border-2 border-indigo-200 whitespace-nowrap"></div>
                 <div class="flex justify-between text-lg text-gray-600 font-semibold">
-                    <p>
-                        連勝: <span id="current-streak-display" class="font-bold text-yellow-600">0</span>
-                    </p>
-                    <p id="timer-display-container" class="hidden">
-                        時間: <span id="timer-display" class="font-bold text-red-600">0.00</span>s
-                    </p>
-                    <p>
-                        間違い残り: <span id="remaining-guesses" class="font-bold text-red-500">8</span>
-                    </p>
+                    <p>連勝: <span id="current-streak-display" class="font-bold text-yellow-600">0</span></p>
+                    <p id="timer-display-container" class="hidden">時間: <span id="timer-display" class="font-bold text-red-600">0.00</span>s</p>
+                    <p>残り: <span id="remaining-guesses" class="font-bold text-red-500">8</span></p>
                 </div>
-
                 <div class="bg-gray-100 p-3 rounded-lg shadow-inner">
-                    <h3 class="font-semibold text-gray-700 mb-1">使った文字:</h3>
-                    <div id="guessed-letters-list" class="text-xl font-mono break-words min-h-[1.5rem]">
-                        <!-- 推測された文字が表示される -->
-                    </div>
+                    <h3 class="font-semibold text-gray-700 mb-1 text-sm">使った文字:</h3>
+                    <div id="guessed-letters-list" class="text-xl font-mono break-words min-h-[1.5rem]"></div>
                 </div>
             </div>
         </div>
 
-        <!-- キーボードエリア (CSSをカスタムし、グリッドクラスを削除) -->
-        <div id="keyboard">
-            <!-- JavaScriptでQWERTY配列のボタンが挿入される -->
-        </div>
-        
-        <!-- リスタートボタン -->
+        <div id="keyboard"></div>
         <div class="text-center">
-            <button id="restart-button" class="px-6 py-3 bg-green-500 text-white font-bold rounded-full shadow-lg hover:bg-green-600 transition duration-150 transform hover:scale-105 disabled:bg-gray-400" disabled>
-                新しいゲームを始める
-            </button>
+            <button id="restart-button" class="px-6 py-3 bg-green-500 text-white font-bold rounded-full shadow-lg hover:bg-green-600 disabled:bg-gray-400" disabled>新しいゲームを始める</button>
         </div>
     </div>
 
-    <!-- 共通カスタムメッセージモーダル -->
-    <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50 transition-opacity duration-300">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm text-center transform transition-transform duration-300 scale-95 opacity-0" id="message-box">
+    <div id="arg-curtain"></div>
+    <div id="arg-screen">
+        <h2 class="text-4xl font-bold mb-4 glitch">CONNECTION ESTABLISHED</h2>
+        <p class="text-xl mb-6 text-green-400">特別な鍵（Key）が認証されました。</p>
+        <div class="bg-black p-6 rounded border border-green-500 max-w-lg">
+            <p id="arg-message">
+                [SYSTEM LOG]<br>
+                学力テスト特別賞：認証成功。<br><br>
+                次のフェーズを開始します。<br>
+                以下の座標を解析してください。<br>
+                ---<br>
+                (ここに次のWebページURLやヒントを書く)<br>
+                ---
+            </p>
+        </div>
+        <button onclick="location.reload()" class="mt-8 text-sm text-gray-500 hover:text-green-400 underline">EXIT_SYSTEM</button>
+    </div>
+
+    <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm text-center" id="message-box">
             <h2 id="message-title" class="text-3xl font-bold mb-3 text-indigo-600"></h2>
             <p id="message-text" class="text-lg text-gray-700 mb-4"></p>
-            <button id="modal-close-button" class="px-5 py-2 bg-indigo-500 text-white font-semibold rounded-lg hover:bg-indigo-600 transition duration-150">閉じる</button>
+            <button id="modal-close-button" class="px-5 py-2 bg-indigo-500 text-white font-semibold rounded-lg">閉じる</button>
         </div>
     </div>
 
-    <!-- 新規：ゲームルールモーダル -->
-    <div id="rules-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden items-center justify-center p-4 z-50 transition-opacity duration-300">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg transform transition-transform duration-300 scale-95 opacity-0" id="rules-box">
+    <div id="rules-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg" id="rules-box">
             <h2 class="text-3xl font-bold mb-4 text-indigo-700 text-center">💡 ゲームルール 💡</h2>
-            <div class="space-y-4 text-gray-700">
-                <p>ハングマン（Hanged Man）は、隠された単語を推測するゲームです。アルファベットを一つずつ選んで、単語に含まれているか推測します。</p>
-                
-                <h3 class="text-xl font-semibold border-b pb-1 text-gray-800">遊び方</h3>
-                <ul class="list-disc list-inside space-y-2 ml-4">
-                    <li>単語に含まれる文字を推測すると、その文字が単語内に表示されます。</li>
-                    <li>推測した文字が単語に含まれていない場合、<b>絞首台のパーツが一つ追加</b>されます。</li>
-                    <li>パーツは8つまで描画されます。<b>合計8回</b>の間違いまでに単語をすべて当てれば<b>勝利</b>です！</li>
-                </ul>
-
-                <h3 class="text-xl font-semibold border-b pb-1 text-gray-800">ゲームモード</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <div class="p-2 bg-indigo-50 rounded-lg">
-                        <p class="font-bold text-indigo-600">エンドレスモード</p>
-                        <p>ゲームオーバーになるまで連勝に挑戦します。連勝記録を伸ばしましょう！</p>
-                    </div>
-                    <div class="p-2 bg-indigo-50 rounded-lg">
-                        <p class="font-bold text-indigo-600">5連勝 / 10連勝モード</p>
-                        <p>指定された回数（5回または10回）連続で勝利を目指します。途中で敗北すると連勝がリセットされます。</p>
-                    </div>
-                    <div class="p-2 bg-indigo-50 rounded-lg col-span-full">
-                        <p class="font-bold text-indigo-600">5連勝 (タイムアタックモード)</p>
-                        <p>5連勝を達成するまでの<b>合計時間</b>を競います。スピードと正確さが重要です！</p>
-                    </div>
-                </div>
+            <div class="space-y-4 text-gray-700 text-sm">
+                <p>隠された単語を推測してください。8回間違えると終了です。</p>
             </div>
-            <button id="rules-close-button" class="mt-6 w-full px-5 py-2 bg-indigo-500 text-white font-semibold rounded-lg hover:bg-indigo-600 transition duration-150">閉じる</button>
+            <button id="rules-close-button" class="mt-6 w-full px-5 py-2 bg-indigo-500 text-white font-semibold rounded-lg">閉じる</button>
         </div>
     </div>
 
-
-    <!-- 単語リスト (隠すために圧縮して移動) -->
     <script>
-        const words = ["APPLE", "ORANGE", "GRAPE", "LEMON", "PEACH", "PLUM", "CHERRY", "MANGO", "PAPAYA", "LITCHI", "APRICOT", "RAISIN", "OLIVE", "BERRY", "MELON", "PUMPKIN", "CABBAGE", "ONION", "CARROT", "RADISH", "TOMATO", "POTATO", "GARLIC", "BROCCOLI", "SPINACH", "CORN", "SUGAR", "FLOUR", "SAUCE", "PIZZA", "BURGER", "BACON", "STEAK", "CHICKEN", "SUSHI", "PASTA", "COFFEE", "TEA", "JUICE", "CREAM", "CHEESE", "BREAD", "WINE", "BEER", "VODKA", "WHISKY", "GINGER", "CHILI", "CLOVES", "PEPPER", "SALMON", "TUNA", "SHRIMP", "SQUID", "MUTTON", "NOODLE", "WAFFLE", "TOAST", "BISCUIT", "COOKIE", "CANDY", "SODA", "WATER", "YOGURT", "HONEY", "SYRUP", "MUSHROOM", "TIGER", "LION", "ZEBRA", "BEAR", "SHARK", "WOLF", "SNAKE", "MOUSE", "EAGLE", "FROG", "CAT", "DOG", "HORSE", "DEER", "SHEEP", "GOAT", "PANDA", "KOALA", "MONKEY", "GIRAFFE", "ELEPHANT", "RHINO", "HIPPO", "SEAL", "WALRUS", "KANGAROO", "PARROT", "OWL", "CROW", "DOVE", "SWAN", "DUCK", "CHICK", "FOX", "RACCOON", "SQUIRREL", "RABBIT", "BADGER", "OTTER", "WEASEL", "FERRET", "LIZARD", "TURTLE", "CRAB", "LOBSTER", "BEE", "WASP", "ANT", "BUG", "MOTH", "FLY", "WORM", "SLOTH", "COUGAR", "FALCON", "VULTURE", "HERON", "EMU", "KIWI", "ALBATROSS", "PENGUIN", "DOLPHIN", "WHALE", "OCTOPUS", "JELLY", "STARFISH", "EEL", "CRICKET", "TERRIER", "RIVER", "MOUNT", "BEACH", "FOREST", "CLOUD", "OCEAN", "STORM", "EARTH", "LAKE", "SHORE", "SUN", "MOON", "STAR", "SKY", "RAIN", "SNOW", "WIND", "FOG", "ICE", "ROCK", "SAND", "CAVE", "DESERT", "VALLEY", "HILL", "MARSH", "SWAMP", "CREEK", "POND", "GLACIER", "VOLCANO", "ISLAND", "CANYON", "CLIFF", "CEMENT", "METAL", "STONE", "GRASS", "PLANT", "FLOWER", "GARDEN", "SHRUB", "TREES", "BRANCH", "LEAVES", "ROOT", "BARK", "SEED", "FRUIT", "FIELD", "MEADOW", "FARM", "HAY", "WHEAT", "GRASS", "THORN", "STREAM", "GULF", "BAY", "TUNDRA", "SAVANNA", "TEMPEST", "THUNDER", "LIGHT", "DUST", "SPACE", "VAPOR", "COAL", "OIL", "GAS", "HOUSE", "TABLE", "CHAIR", "DESK", "SOFA", "LAMP", "DOOR", "CLOCK", "SHELF", "BED", "PILLOW", "BLANKET", "TOWEL", "SOAP", "SHOWER", "TOILET", "SINK", "MIRROR", "OVEN", "STOVE", "FRIDGE", "RADIO", "PHONE", "WATCH", "KNIFE", "FORK", "SPOON", "PLATE", "BOWL", "GLASS", "CUP", "BOTTLE", "BOX", "CHEST", "TRUNK", "PAINT", "BRUSH", "PENCIL", "PAPER", "BOOK", "NOTE", "DIARY", "COIN", "MONEY", "PURSE", "WALLET", "GLOVE", "SHIRT", "JACKET", "SCARF", "SHOES", "BOOTS", "DRESS", "SKIRT", "BELT", "HAT", "COAT", "VEST", "SOCKS", "TIES", "HANGER", "CART", "WAGON", "MOTOR", "WHEEL", "AXLE", "TRAIN", "YACHT", "SHIP", "PLANE", "BIKE", "BICYCLE", "GEMINI", "SCRIPT", "MODEL", "CODE", "QUERY", "LEARN", "GREAT", "FLASH", "BRAIN", "SMART", "HAPPY", "FUNNY", "SILLY", "BRAVE", "SOBER", "QUIET", "LOUD", "QUICK", "SLOW", "BRIGHT", "DARK", "CALM", "WARM", "COLD", "SMALL", "LARGE", "TINY", "HUGE", "EMPTY", "FULL", "FIRST", "LAST", "BETTER", "WORSE", "READY", "SIMPLE", "COMPLEX", "TRUTH", "FAKE", "LOGIC", "MAGIC", "HUMAN", "ROBOT", "VIRUS", "DATA", "INPUT", "OUTPUT", "DEBUG", "CLICK", "PRINT", "DRIVE", "EMAIL", "CHAT", "VOICE", "IMAGE", "VIDEO", "SCREEN", "KEYPAD", "POWER", "CYCLE", "VALUE", "PRIME", "RATIO", "THEME", "STYLE", "FANCY", "PLAIN", "ROUGH", "SMOOTH", "SHARP", "DULL", "CLOSE", "OPEN", "START", "END", "BEGIN", "FINAL", "CHANCE", "ERROR", "GUARD", "PEACE", "WAR", "UNITY", "GROUP", "PARTY", "UNION", "FORCE", "SPEED", "VELOCITY", "ACCEL", "MASS", "VOLUME", "DENSITY", "FLUID", "SOLID", "GAS", "ENERGY", "FIELD", "WAVE", "PARTICLE", "ATOMIC", "SOLAR", "LUNAR", "GLOBAL", "LOCAL", "REMOTE", "OFFLINE", "ONLINE", "MOBILE", "FIBER", "SENSOR", "PROMPT", "TOKEN", "CACHE", "BUFFER", "ARRAY", "STACK", "QUEUE", "INDEX", "RANGE", "BOUNDS", "CONST", "PUBLIC", "PRIVATE", "ACCESS", "SYSTEM", "SERVER", "CLIENT", "ROUTER", "SWITCH", "CABLE", "WIRE", "SIGNAL", "AUDIO", "MUSIC", "DRAFT", "ESSAY", "REPORT", "GRADE", "CLASS", "STUDY", "TEACH", "WRITE", "READ", "MEMORY", "DREAM", "FUTURE", "PAST", "TODAY", "NIGHT", "MORNING", "AFTER", "BEFORE", "UNTIL", "WHILE", "JUMP", "RUN", "WALK", "WRITE", "THINK", "SPEAK", "POWER", "SLEEP", "FIGHT", "DANCE", "SING", "LISTEN", "TALK", "READ", "WATCH", "BUILD", "CREATE", "DRAW", "PAINT", "COOK", "EAT", "DRINK", "WASH", "CLEAN", "DRIVE", "RIDE", "FLY", "SWIM", "TEACH", "STUDY", "LEARN", "WORK", "START", "STOP", "OPEN", "CLOSE", "FIND", "SEARCH", "HIDE", "SHOW", "LOOK", "HEAR", "SMELL", "TASTE", "TOUCH", "PULL", "PUSH", "CARRY", "WEAR", "THROW", "CATCH", "CALL", "SEND", "MAIL", "TEXT", "WAIT", "HURRY", "QUICK", "SLOW", "ENTER", "EXIT", "CLIMB", "FALL", "RISE", "KICK", "GRASP", "REACH", "SOLVE", "PROVE", "CHECK", "SHARE", "VOTE", "AGREE", "RELOAD"];
-    </script>
-
-
-    <script>
-        // --- 設定と定数 ---
-        // 間違い回数の上限を8に設定
+        const words = ["APPLE", "READY", "FUTURE", "SYSTEM", "PLAYER", "GUILD", "QUEST", "KEYBOARD", "DART", "RPG"];
         const maxIncorrectGuesses = 8;
-        // 人体パーツ (間違い3回目から始まる)
-        const humanParts = [
-            "part-head",   // 3回目
-            "part-body",   // 4回目
-            "part-larm",   // 5回目
-            "part-rarm",   // 6回目
-            "part-lleg",   // 7回目
-            "part-rleg"    // 8回目
-        ];
+        const humanParts = ["part-head", "part-body", "part-larm", "part-rarm", "part-lleg", "part-rleg"];
+        const GAME_MODES = { ENDLESS: 'エンドレス', STREAK_5: '5連勝', STREAK_10: '10連勝', TIME_ATTACK_5: '5連勝 (TA)' };
+        const keyboardLayout = ['QWERTYUIOP'.split(''), 'ASDFGHJKL'.split(''), 'ZXCVBNM'.split('')];
 
-        const GAME_MODES = {
-            ENDLESS: 'エンドレス',
-            STREAK_5: '5連勝',
-            STREAK_10: '10連勝',
-            TIME_ATTACK_5: '5連勝 (TA)'
-        };
-        
-        // QWERTYキーボード配列を定義 (3行)
-        const keyboardLayout = [
-            'QWERTYUIOP'.split(''),
-            'ASDFGHJKL'.split(''),
-            'ZXCVBNM'.split('')
-        ];
-
-
-        // --- ゲーム状態変数 ---
-        let secretWord;
-        let guessedLetters;
-        let incorrectGuesses;
-        let gameStatus; // 'playing', 'won', 'lost'
-
-        // モード/連勝/タイマー関連
+        let secretWord, guessedLetters, incorrectGuesses, gameStatus;
         let currentMode = localStorage.getItem('hangmanGameMode') || GAME_MODES.ENDLESS;
         let currentStreak = parseInt(localStorage.getItem('hangmanCurrentStreak') || '0', 10);
-        let timerInterval;
-        let startTime;
-        let elapsedTime = parseFloat(localStorage.getItem('hangmanElapsedTime') || '0');
-        
-        // DOM要素の取得
+        let timerInterval, startTime, elapsedTime = 0;
+        let inputBuffer = ""; // ARG用タイピング監視
+        const SECRET_KEY = "READY"; // ←これを打つと演出開始
+
         const wordDisplay = document.getElementById('word-display');
         const keyboard = document.getElementById('keyboard');
         const guessedLettersList = document.getElementById('guessed-letters-list');
         const remainingGuessesSpan = document.getElementById('remaining-guesses');
         const restartButton = document.getElementById('restart-button');
         const messageModal = document.getElementById('message-modal');
-        const messageBox = document.getElementById('message-box');
-        const messageTitle = document.getElementById('message-title');
-        const messageText = document.getElementById('message-text');
         const modalCloseButton = document.getElementById('modal-close-button');
-        const rulesModal = document.getElementById('rules-modal');
-        const rulesBox = document.getElementById('rules-box');
-        const rulesCloseButton = document.getElementById('rules-close-button');
-        const modeSelectionButtons = document.getElementById('mode-selection-buttons');
         const currentModeDisplay = document.getElementById('current-mode-display');
         const currentStreakDisplay = document.getElementById('current-streak-display');
         const timerDisplay = document.getElementById('timer-display');
-        const timerDisplayContainer = document.getElementById('timer-display-container');
 
-
-        // --- 初期化とリセット ---
         function initializeGame() {
-            // 単語の選択
             secretWord = words[Math.floor(Math.random() * words.length)];
             guessedLetters = new Set();
             incorrectGuesses = 0;
             gameStatus = 'playing';
-
-            // UIの初期化
             updateModeUI();
             updateWordDisplay();
-            updateHangedMan(); // 初期描画 (全て非表示)
+            updateHangedMan();
             updateGuessedLettersList();
             updateRemainingGuesses();
             createKeyboard();
             restartButton.disabled = true;
             wordDisplay.classList.remove('text-red-500');
-
-            // タイマーの管理
-            stopTimer();
-            if (currentMode === GAME_MODES.TIME_ATTACK_5) {
-                startTimer();
-                timerDisplayContainer.classList.remove('hidden');
-            } else {
-                timerDisplayContainer.classList.add('hidden');
-            }
         }
 
-        // --- モード管理 ---
-
-        /**
-         * モード選択ボタンを生成し、イベントリスナーを設定する
-         */
         function createModeSelectionButtons() {
-            modeSelectionButtons.innerHTML = '';
+            const container = document.getElementById('mode-selection-buttons');
+            container.innerHTML = '';
             Object.values(GAME_MODES).forEach(mode => {
-                const button = document.createElement('button');
-                button.textContent = mode;
-                button.classList.add(
-                    'px-3', 'py-1', 'text-xs', 'font-semibold', 'rounded-full', 'transition', 'duration-150',
-                    'border-2'
-                );
-                button.setAttribute('data-mode', mode);
-                
-                if (mode === currentMode) {
-                    button.classList.add('bg-indigo-500', 'text-white', 'border-indigo-600');
-                } else {
-                    button.classList.add('bg-white', 'text-indigo-600', 'border-indigo-200', 'hover:bg-indigo-50');
-                }
-
-                button.addEventListener('click', () => setGameMode(mode));
-                modeSelectionButtons.appendChild(button);
+                const btn = document.createElement('button');
+                btn.textContent = mode;
+                btn.className = `px-3 py-1 text-xs font-semibold rounded-full border-2 ${mode === currentMode ? 'bg-indigo-500 text-white' : 'bg-white text-indigo-600'}`;
+                btn.onclick = () => { currentMode = mode; initializeGame(); };
+                container.appendChild(btn);
             });
         }
 
-        /**
-         * ゲームモードを設定し、リセットする
-         * @param {string} mode - 選択されたゲームモード
-         */
-        function setGameMode(mode) {
-            currentMode = mode;
-            localStorage.setItem('hangmanGameMode', mode);
-            
-            // モード変更時は連勝とタイマーをリセット
-            currentStreak = 0;
-            elapsedTime = 0;
-            localStorage.setItem('hangmanCurrentStreak', '0');
-            localStorage.setItem('hangmanElapsedTime', '0');
-            
-            updateModeUI();
-            initializeGame();
-        }
-        
-        /**
-         * モード関連のUIを更新する
-         */
         function updateModeUI() {
             currentModeDisplay.textContent = currentMode;
             currentStreakDisplay.textContent = currentStreak;
-            timerDisplay.textContent = elapsedTime.toFixed(2);
-            createModeSelectionButtons(); // ボタンの状態も更新
+            createModeSelectionButtons();
         }
 
-        // --- タイマーロジック ---
-
-        function startTimer() {
-            if (timerInterval) clearInterval(timerInterval);
-            // 経過時間から開始時刻を逆算
-            startTime = Date.now() - (elapsedTime * 1000);
-            timerInterval = setInterval(() => {
-                elapsedTime = (Date.now() - startTime) / 1000;
-                timerDisplay.textContent = elapsedTime.toFixed(2);
-                localStorage.setItem('hangmanElapsedTime', elapsedTime.toFixed(2));
-            }, 10);
-        }
-
-        function stopTimer() {
-            if (timerInterval) clearInterval(timerInterval);
-            timerInterval = null;
-        }
-
-
-        // --- UI更新関数 (既存) ---
         function updateWordDisplay() {
-            let display = '';
-            for (const letter of secretWord) {
-                if (guessedLetters.has(letter)) {
-                    display += letter;
-                } else {
-                    display += '_';
-                }
-            }
-            wordDisplay.textContent = display;
+            wordDisplay.textContent = [...secretWord].map(l => guessedLetters.has(l) ? l : '_').join('');
         }
-        
+
         function updateHangedMan() {
-            // --- 絞首台の描画制御 ---
-            
-            // 1. 地面 (ミス1回目以降に表示)
             document.getElementById("part-gallows-base").classList.toggle('hidden', incorrectGuesses < 1);
-            
-            // 2. 柱・梁・縄 (ミス2回目以降に一括で表示)
-            const showGallowsStructure = incorrectGuesses >= 2;
-            document.getElementById("part-gallows-pole").classList.toggle('hidden', !showGallowsStructure);
-            document.getElementById("part-gallows-beam").classList.toggle('hidden', !showGallowsStructure);
-            document.getElementById("part-gallows-rope").classList.toggle('hidden', !showGallowsStructure);
-
-            // --- 人体の描画制御 (ミス3回目以降) ---
-            for (let i = 0; i < humanParts.length; i++) {
-                const part = document.getElementById(humanParts[i]);
-                if (part) {
-                    // 人体パーツは3回目のミスから始まるため、 i + 3 と比較する
-                    // i=0 (頭) -> 3回目, i=1 (体) -> 4回目, ..., i=5 (右足) -> 8回目
-                    part.classList.toggle('hidden', incorrectGuesses < (i + 3));
-                }
-            }
+            const showStructure = incorrectGuesses >= 2;
+            ["part-gallows-pole", "part-gallows-beam", "part-gallows-rope"].forEach(id => document.getElementById(id).classList.toggle('hidden', !showStructure));
+            humanParts.forEach((id, i) => document.getElementById(id).classList.toggle('hidden', incorrectGuesses < (i + 3)));
         }
 
-        function updateGuessedLettersList() {
-            const sortedLetters = Array.from(guessedLetters).sort();
-            guessedLettersList.textContent = sortedLetters.join(', ');
-        }
-        
-        function updateRemainingGuesses() {
-            remainingGuessesSpan.textContent = maxIncorrectGuesses - incorrectGuesses;
-            remainingGuessesSpan.classList.toggle('text-red-500', maxIncorrectGuesses - incorrectGuesses <= 2);
-            remainingGuessesSpan.classList.toggle('text-green-500', maxIncorrectGuesses - incorrectGuesses > 2);
-        }
+        function updateGuessedLettersList() { guessedLettersList.textContent = Array.from(guessedLetters).sort().join(', '); }
+        function updateRemainingGuesses() { remainingGuessesSpan.textContent = maxIncorrectGuesses - incorrectGuesses; }
 
-        /**
-         * QWERTY配列でキーボードを作成する
-         */
         function createKeyboard() {
             keyboard.innerHTML = '';
-            
             keyboardLayout.forEach(row => {
                 const rowDiv = document.createElement('div');
-                // カスタムCSSで定義したキーボード行のスタイルを適用
-                rowDiv.classList.add('key-row'); 
-                
+                rowDiv.className = 'key-row';
                 row.forEach(letter => {
-                    const button = document.createElement('button');
-                    button.textContent = letter;
-                    button.classList.add(
-                        'key-button', // カスタムCSSで定義した基本スタイル
-                        'bg-indigo-500', 'text-white', 'hover:bg-indigo-600', 'transition', 'duration-100',
-                        'active:bg-indigo-700', 'disabled:bg-gray-300', 'disabled:text-gray-500', 'disabled:shadow-none'
-                    );
-                    button.setAttribute('data-letter', letter);
-                    button.addEventListener('click', () => handleGuess(letter, button));
-                    rowDiv.appendChild(button);
-
-                    if (guessedLetters.has(letter)) {
-                        const isCorrect = secretWord.includes(letter);
-                        updateButtonState(letter, isCorrect);
-                    }
+                    const btn = document.createElement('button');
+                    btn.textContent = letter;
+                    btn.className = 'key-button bg-indigo-500 text-white disabled:bg-gray-300';
+                    btn.dataset.letter = letter;
+                    btn.onclick = () => handleGuess(letter, btn);
+                    rowDiv.appendChild(btn);
                 });
                 keyboard.appendChild(rowDiv);
             });
         }
 
-        function updateButtonState(letter, isCorrect) {
-            const button = document.querySelector(`#keyboard button[data-letter="${letter}"]`);
-            if (button) {
-                button.disabled = true;
-                button.classList.remove('bg-indigo-500', 'hover:bg-indigo-600');
-                if (isCorrect) {
-                    button.classList.add('bg-green-500', 'text-white');
-                } else {
-                    button.classList.add('bg-red-500', 'text-white');
-                }
-            }
-        }
-
-        // --- ゲームロジック ---
-
-        function handleGuess(letter, button) {
-            if (gameStatus !== 'playing' || guessedLetters.has(letter)) {
-                return;
-            }
-
+        function handleGuess(letter, btn) {
+            if (gameStatus !== 'playing' || guessedLetters.has(letter)) return;
             guessedLetters.add(letter);
-            updateGuessedLettersList();
-
             if (secretWord.includes(letter)) {
                 updateWordDisplay();
-                updateButtonState(letter, true);
+                btn.classList.add('bg-green-500');
             } else {
                 incorrectGuesses++;
                 updateHangedMan();
                 updateRemainingGuesses();
-                updateButtonState(letter, false);
+                btn.classList.add('bg-red-500');
             }
-
+            btn.disabled = true;
             checkGameStatus();
         }
 
         function checkGameStatus() {
-            // 単語のすべての文字が推測されたかチェック
-            const isWordGuessed = [...secretWord].every(letter => guessedLetters.has(letter));
-            
-            if (isWordGuessed) {
-                gameStatus = 'won';
-                endGame(true);
-            } else if (incorrectGuesses >= maxIncorrectGuesses) {
-                gameStatus = 'lost';
-                endGame(false);
-            }
+            const won = [...secretWord].every(l => guessedLetters.has(l));
+            if (won) endGame(true);
+            else if (incorrectGuesses >= maxIncorrectGuesses) endGame(false);
         }
 
         function endGame(isWin) {
-            stopTimer();
-            // キーボードを無効化
-            Array.from(keyboard.querySelectorAll('button')).forEach(btn => btn.disabled = true);
-            
-            if (isWin) {
-                currentStreak++;
-                localStorage.setItem('hangmanCurrentStreak', currentStreak.toString());
-                updateModeUI();
-
-                const targetStreak = (currentMode === GAME_MODES.STREAK_5 || currentMode === GAME_MODES.TIME_ATTACK_5) ? 5 : 10;
-                
-                if (currentMode === GAME_MODES.ENDLESS || currentStreak >= targetStreak) {
-                    // 1. ENDLESS Mode: Show modal, wait for restart (no auto-continue).
-                    // 2. STREAK Mode, Target Met: Show final modal, wait for restart (no auto-continue).
-                    
-                    let winMessage;
-                    let detailText;
-                    
-                    if (currentMode === GAME_MODES.ENDLESS) {
-                        winMessage = `🎉 ${currentStreak}連勝達成! 🎉`;
-                        detailText = '続けて次の単語に挑戦しましょう！';
-                    } else { // Target met
-                         if (currentMode === GAME_MODES.TIME_ATTACK_5) {
-                            winMessage = `🏆 5連勝タイムアタック完了! 🏆`;
-                            detailText = `合計タイム: ${elapsedTime.toFixed(2)}秒！新記録を目指しましょう。`;
-                        } else {
-                            winMessage = `🎉 ${targetStreak}連勝達成! 🎉`;
-                            detailText = '見事に目標をクリアしました！';
-                        }
-                        
-                        // 目標達成後は連勝とタイマーをリセット
-                        currentStreak = 0;
-                        elapsedTime = 0;
-                        localStorage.setItem('hangmanCurrentStreak', '0');
-                        localStorage.setItem('hangmanElapsedTime', '0');
-                        updateModeUI();
-                    }
-                    
-                    showMessage(winMessage, detailText);
-                    restartButton.disabled = false;
-
-                } else {
-                    // 3. STREAK Mode, Target NOT Met: Show brief success and auto-continue.
-                    const winMessage = `✅ ${currentStreak}連勝! (あと${targetStreak - currentStreak}回) ✅`;
-                    const detailText = '次の単語へ！';
-                    // 1.5秒後に自動で次のゲームを開始
-                    showMessage(winMessage, detailText, 1500); 
-                    restartButton.disabled = true; // 自動で次が始まるため無効化
-                }
-
-            } else { // 敗北
-                const lossMessage = (currentStreak > 0) ? `連勝ストップ...` : `💀 ゲームオーバー 💀`;
-                let detailText = `残念！正解の単語は「${secretWord}」でした。`;
-                
-                // 連勝をリセット
-                currentStreak = 0;
-                elapsedTime = 0;
-                localStorage.setItem('hangmanCurrentStreak', '0');
-                localStorage.setItem('hangmanElapsedTime', '0');
-                updateModeUI();
-
-                if (currentMode !== GAME_MODES.ENDLESS) {
-                    detailText += ` ${currentMode}モードに再挑戦しましょう。`;
-                }
-
-                showMessage(lossMessage, detailText);
-                
-                // 敗北時は絞首台のパーツを全て表示する
-                document.getElementById("part-gallows-base").classList.remove('hidden');
-                document.getElementById("part-gallows-pole").classList.remove('hidden');
-                document.getElementById("part-gallows-beam").classList.remove('hidden');
-                document.getElementById("part-gallows-rope").classList.remove('hidden');
-                humanParts.forEach(id => document.getElementById(id).classList.remove('hidden'));
-                
-                wordDisplay.textContent = [...secretWord].join('');
-                wordDisplay.classList.add('text-red-500');
-                restartButton.disabled = false;
-            }
+            gameStatus = isWin ? 'won' : 'lost';
+            restartButton.disabled = false;
+            if (!isWin) wordDisplay.textContent = secretWord;
+            alert(isWin ? "勝利！" : "ゲームオーバー。正解は: " + secretWord);
         }
 
-        // --- モーダル表示機能 ---
-
-        /**
-         * カスタムメッセージモーダルを表示する
-         * @param {string} title - タイトル
-         * @param {string} text - メッセージ本文
-         * @param {number} [autoCloseDuration=0] - 自動で閉じるまでの時間（ミリ秒）。0の場合は手動で閉じる。
-         */
-        function showMessage(title, text, autoCloseDuration = 0) {
-            messageTitle.textContent = title;
-            messageText.textContent = text;
-            messageModal.classList.remove('hidden');
-            // 'opacity-0' を付けてトランジションを有効化
-            messageModal.classList.add('flex', 'opacity-0');
-            
-            // Auto-close logic
-            if (autoCloseDuration > 0) {
-                // 自動で閉じる場合はボタンを非表示
-                modalCloseButton.classList.add('hidden');
-            } else {
-                // 手動で閉じる場合はボタンを表示し、アクションを設定
-                modalCloseButton.classList.remove('hidden');
-                modalCloseButton.onclick = hideMessage;
-            }
-
-            // トランジション開始
-            setTimeout(() => {
-                messageModal.classList.remove('opacity-0');
-                messageBox.classList.remove('scale-95', 'opacity-0');
-                messageBox.classList.add('scale-100', 'opacity-100');
-            }, 10);
-            
-            // 自動で閉じて次のゲームを開始する処理
-            if (autoCloseDuration > 0) {
-                 setTimeout(() => {
-                    hideMessage();
-                    initializeGame(); // 次のゲームを開始
-                }, autoCloseDuration);
-            }
+        // --- ARG演出のトリガー関数 ---
+        function triggerArgSequence() {
+            const curtain = document.getElementById('arg-curtain');
+            const screen = document.getElementById('arg-screen');
+            curtain.classList.add('active');
+            setTimeout(() => { screen.style.display = 'flex'; }, 2000);
         }
-        
-        function hideMessage() {
-            messageBox.classList.remove('scale-100', 'opacity-100');
-            messageBox.classList.add('scale-95', 'opacity-0');
-
-            setTimeout(() => {
-                messageModal.classList.add('hidden');
-                messageModal.classList.remove('flex');
-            }, 300);
-        }
-        
-        function showRulesModal() {
-            rulesModal.classList.remove('hidden');
-            rulesModal.classList.add('flex', 'opacity-0');
-
-            setTimeout(() => {
-                rulesModal.classList.remove('opacity-0');
-                rulesBox.classList.remove('scale-95', 'opacity-0');
-                rulesBox.classList.add('scale-100', 'opacity-100');
-            }, 10);
-        }
-        
-        function hideRulesModal() {
-            rulesBox.classList.remove('scale-100', 'opacity-100');
-            rulesBox.classList.add('scale-95', 'opacity-0');
-
-            setTimeout(() => {
-                rulesModal.classList.add('hidden');
-                rulesModal.classList.remove('flex');
-            }, 300);
-        }
-
-        // --- 初回訪問チェック ---
-        function checkFirstVisit() {
-            const hasVisited = localStorage.getItem('hangmanHasVisited');
-            if (!hasVisited) {
-                // 初回訪問時のみルールを表示
-                showRulesModal();
-                // 訪問フラグを設定
-                localStorage.setItem('hangmanHasVisited', 'true');
-            }
-        }
-
-
-        // --- イベントリスナー ---
-        
-        restartButton.addEventListener('click', () => {
-            initializeGame();
-        });
-
-        rulesCloseButton.addEventListener('click', hideRulesModal);
 
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                if (messageModal.classList.contains('flex') && !modalCloseButton.classList.contains('hidden')) {
-                    // メッセージモーダルが表示中で、かつボタンが非表示ではない場合（手動閉じが可能な場合）
-                    hideMessage();
-                } else if (rulesModal.classList.contains('flex')) {
-                    // ルールモーダルが表示中の場合
-                    hideRulesModal();
-                }
-            }
-            
-            // キーボード入力に対応
             const key = e.key.toUpperCase();
+            
+            // 隠しコマンド監視
+            inputBuffer += key;
+            if (inputBuffer.endsWith(SECRET_KEY)) {
+                triggerArgSequence();
+                return;
+            }
+
             if (key.length === 1 && key >= 'A' && key <= 'Z' && gameStatus === 'playing') {
-                const button = document.querySelector(`#keyboard button[data-letter="${key}"]`);
-                if (button && !button.disabled) {
-                    handleGuess(key, button);
-                }
+                const btn = document.querySelector(`button[data-letter="${key}"]`);
+                if (btn && !btn.disabled) handleGuess(key, btn);
             }
         });
 
-        // --- 起動 ---
-        window.onload = () => {
-            // モードUIの初期化（連勝数、現在のモード表示など）
-            updateModeUI();
-            
-            // ゲームの開始
-            initializeGame();
-            
-            // 初回訪問チェック
-            checkFirstVisit();
-        };
-
+        window.onload = initializeGame;
     </script>
-
 </body>
 </html>
-
