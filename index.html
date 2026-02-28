@@ -3,322 +3,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HANGED MAN - ARCHIVE</title>
+    <title>HANGED MAN - SYSTEM_LOGIN</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f7f9fb;
-            margin: 0;
-            overflow-x: hidden;
-        }
-        .hangman-part {
-            fill: none;
-            stroke: #2c3e50;
-            stroke-width: 4;
-            stroke-linecap: round;
-        }
-        #keyboard {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            padding: 12px;
-            background-color: #f9fafb;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-        .key-row {
-            display: flex;
-            justify-content: center;
-            gap: 4px;
-        }
-        .key-button {
-            flex-grow: 1;
-            padding: 8px 12px;
-            font-size: 14px;
-            font-weight: bold;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            transition: all 0.15s;
-        }
-        @media (min-width: 768px) {
-            .key-button { padding: 12px 16px; font-size: 16px; }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=Share+Tech+Mono&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; margin: 0; overflow: hidden; }
+        .hangman-part { fill: none; stroke: #2c3e50; stroke-width: 4; stroke-linecap: round; }
+        #keyboard { display: flex; flex-direction: column; gap: 4px; padding: 12px; background-color: #f9fafb; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .key-row { display: flex; justify-content: center; gap: 4px; }
+        .key-button { flex-grow: 1; padding: 8px 12px; font-size: 14px; font-weight: bold; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); transition: all 0.15s; }
         #game-container { background: linear-gradient(145deg, #ffffff, #f0f4f8); }
-        #hangman-svg-container {
-             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-             border-radius: 12px;
-             background-color: #fff;
-             padding: 8px;
+
+        /* --- ARG演出：ターミナルスタイル --- */
+        #arg-curtain {
+            position: fixed; top: 0; left: 0; width: 100%; height: 0;
+            background-color: black; transition: height 1.5s ease-in-out;
+            z-index: 9998; pointer-events: none;
+        }
+        #arg-curtain.active { height: 100vh; pointer-events: all; }
+
+        #arg-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+            background-color: black; color: #00FF00;
+            display: none; z-index: 9999;
+            flex-direction: column; justify-content: center; align-items: center;
+            font-family: 'Share Tech Mono', monospace; padding: 20px;
         }
 
-        /* --- ARG演出用のスタイル --- */
-        #arg-curtain {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 0;
-            background-color: black;
-            transition: height 2s ease-in-out;
-            z-index: 9998;
-            pointer-events: none;
+        #terminal-box { width: 100%; max-width: 600px; text-align: left; }
+        .glitch-text { font-size: 1.2rem; line-height: 1.5; color: #0f0; min-height: 3em; word-break: break-all; }
+        
+        /* ログイン入力欄 */
+        #login-form { display: none; margin-top: 20px; border-top: 1px solid #060; padding-top: 20px; }
+        #login-input {
+            background: transparent; border: none; color: #0f0; outline: none;
+            font-size: 1.5rem; width: 100%; font-family: inherit;
         }
-        #arg-curtain.active {
-            height: 100vh;
-            pointer-events: all;
-        }
-        #arg-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100vh;
-            background-color: black;
-            color: #00FF00;
-            display: none;
-            z-index: 9999;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            font-family: 'Courier New', Courier, monospace;
-            padding: 20px;
-            text-align: center;
-        }
-        .glitch { animation: glitch 1s linear infinite; }
-        @keyframes glitch {
-            2%, 64% { transform: translate(2px, 0) skew(0deg); }
-            4%, 60% { transform: translate(-2px, 0) skew(0deg); }
-            62% { transform: translate(0, 0) skew(5deg); }
-        }
+        .cursor { display: inline-block; width: 10px; height: 1.2em; background: #0f0; animation: blink 1s infinite; vertical-align: middle; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        .hidden { display: none; }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
     <div id="game-container" class="w-full max-w-xl shadow-2xl rounded-xl p-6 md:p-8 space-y-6">
-        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 text-center border-b-4 border-indigo-500 pb-3">HANGED MAN</h1>
-        
-        <div class="space-y-3 p-3 bg-gray-50 rounded-lg shadow-inner">
-            <div class="flex flex-wrap gap-2 justify-center" id="mode-selection-buttons"></div>
-            <p class="text-center text-sm font-medium text-gray-700">現在のモード: <span id="current-mode-display" class="font-bold text-indigo-600"></span></p>
-        </div>
-
-        <div class="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-6">
-            <div id="hangman-svg-container" class="flex-shrink-0 w-full md:w-1/2 flex justify-center items-center">
-                <svg id="hangman-svg" viewBox="0 0 100 120" class="w-40 h-48 md:w-48 md:h-60">
-                    <line id="part-gallows-base" x1="10" y1="110" x2="90" y2="110" class="hangman-part hidden" /> 
-                    <line id="part-gallows-pole" x1="20" y1="110" x2="20" y2="10" class="hangman-part hidden" /> 
-                    <line id="part-gallows-beam" x1="20" y1="10" x2="70" y2="10" class="hangman-part hidden" />
-                    <line id="part-gallows-rope" x1="70" y1="10" x2="70" y2="20" class="hangman-part hidden" />
-                    <circle id="part-head" cx="70" cy="30" r="10" class="hangman-part hidden" />
-                    <line id="part-body" x1="70" y1="40" x2="70" y2="80" class="hangman-part hidden" />
-                    <line id="part-larm" x1="70" y1="50" x2="60" y2="65" class="hangman-part hidden" />
-                    <line id="part-rarm" x1="70" y1="50" x2="80" y2="65" class="hangman-part hidden" />
-                    <line id="part-lleg" x1="70" y1="80" x2="60" y2="95" class="hangman-part hidden" />
-                    <line id="part-rleg" x1="70" y1="80" x2="80" y2="95" class="hangman-part hidden" />
-                </svg>
-            </div>
-
-            <div class="w-full md:w-1/2 space-y-4">
-                <div id="word-display" class="text-4xl md:text-5xl font-mono tracking-widest text-center text-indigo-700 p-4 bg-indigo-50 rounded-lg shadow-inner border-2 border-indigo-200 whitespace-nowrap"></div>
-                <div class="flex justify-between text-lg text-gray-600 font-semibold">
-                    <p>連勝: <span id="current-streak-display" class="font-bold text-yellow-600">0</span></p>
-                    <p id="timer-display-container" class="hidden">時間: <span id="timer-display" class="font-bold text-red-600">0.00</span>s</p>
-                    <p>残り: <span id="remaining-guesses" class="font-bold text-red-500">8</span></p>
-                </div>
-                <div class="bg-gray-100 p-3 rounded-lg shadow-inner">
-                    <h3 class="font-semibold text-gray-700 mb-1 text-sm">使った文字:</h3>
-                    <div id="guessed-letters-list" class="text-xl font-mono break-words min-h-[1.5rem]"></div>
-                </div>
-            </div>
-        </div>
-
-        <div id="keyboard"></div>
-        <div class="text-center">
-            <button id="restart-button" class="px-6 py-3 bg-green-500 text-white font-bold rounded-full shadow-lg hover:bg-green-600 disabled:bg-gray-400" disabled>新しいゲームを始める</button>
-        </div>
+        <h1 class="text-3xl font-extrabold text-gray-800 text-center border-b-4 border-indigo-500 pb-3">HANGED MAN</h1>
+        <div id="word-display" class="text-4xl font-mono tracking-widest text-center text-indigo-700 p-4 bg-indigo-50 rounded-lg"></div>
+        <div id="keyboard" class="mt-4"></div>
+        <p class="text-center text-gray-400 text-xs mt-4">TYPE THE SECRET KEY TO ESCAPE THE ARCHIVE</p>
     </div>
 
     <div id="arg-curtain"></div>
     <div id="arg-screen">
-        <h2 class="text-4xl font-bold mb-4 glitch">CONNECTION ESTABLISHED</h2>
-        <p class="text-xl mb-6 text-green-400">特別な鍵（Key）が認証されました。</p>
-        <div class="bg-black p-6 rounded border border-green-500 max-w-lg">
-            <p id="arg-message">
-                [SYSTEM LOG]<br>
-                学力テスト特別賞：認証成功。<br><br>
-                次のフェーズを開始します。<br>
-                以下の座標を解析してください。<br>
-                ---<br>
-                (ここに次のWebページURLやヒントを書く)<br>
-                ---
-            </p>
-        </div>
-        <button onclick="location.reload()" class="mt-8 text-sm text-gray-500 hover:text-green-400 underline">EXIT_SYSTEM</button>
-    </div>
-
-    <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm text-center" id="message-box">
-            <h2 id="message-title" class="text-3xl font-bold mb-3 text-indigo-600"></h2>
-            <p id="message-text" class="text-lg text-gray-700 mb-4"></p>
-            <button id="modal-close-button" class="px-5 py-2 bg-indigo-500 text-white font-semibold rounded-lg">閉じる</button>
-        </div>
-    </div>
-
-    <div id="rules-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg" id="rules-box">
-            <h2 class="text-3xl font-bold mb-4 text-indigo-700 text-center">💡 ゲームルール 💡</h2>
-            <div class="space-y-4 text-gray-700 text-sm">
-                <p>隠された単語を推測してください。8回間違えると終了です。</p>
+        <div id="terminal-box">
+            <div id="glitch-area" class="glitch-text"></div>
+            
+            <div id="login-form">
+                <p class="mb-2">SYSTEM_ARCHIVE_LOGIN</p>
+                <div class="flex items-center border-b border-green-900 pb-2">
+                    <span class="mr-2">></span>
+                    <input type="password" id="login-input" autocomplete="off" placeholder="PASSWORD REQUIRED">
+                    <span class="cursor"></span>
+                </div>
+                <p id="auth-status" class="mt-4 text-sm"></p>
+                
+                <div id="success-content" class="hidden mt-6 p-4 border border-green-500 bg-green-900/20">
+                    <p class="text-xl font-bold mb-2">ACCESS GRANTED.</p>
+                    <p>次の目的地：https://(あなたのURL).github.io/next-step</p>
+                    <p class="text-xs mt-2">※この座標を忘れるな。</p>
+                </div>
             </div>
-            <button id="rules-close-button" class="mt-6 w-full px-5 py-2 bg-indigo-500 text-white font-semibold rounded-lg">閉じる</button>
         </div>
     </div>
 
     <script>
-        const words = ["APPLE", "READY", "FUTURE", "SYSTEM", "PLAYER", "GUILD", "QUEST", "KEYBOARD", "DART", "RPG"];
-        const maxIncorrectGuesses = 8;
-        const humanParts = ["part-head", "part-body", "part-larm", "part-rarm", "part-lleg", "part-rleg"];
-        const GAME_MODES = { ENDLESS: 'エンドレス', STREAK_5: '5連勝', STREAK_10: '10連勝', TIME_ATTACK_5: '5連勝 (TA)' };
-        const keyboardLayout = ['QWERTYUIOP'.split(''), 'ASDFGHJKL'.split(''), 'ZXCVBNM'.split('')];
+        // --- 基本設定 ---
+        const SECRET_KEY = "READY"; // 幕を下ろすためのコマンド
+        const FINAL_PASSWORD = "25E"; // ログイン画面の正解パスワード (例: 純也さんのIDの一部など)
+        let inputBuffer = "";
 
-        let secretWord, guessedLetters, incorrectGuesses, gameStatus;
-        let currentMode = localStorage.getItem('hangmanGameMode') || GAME_MODES.ENDLESS;
-        let currentStreak = parseInt(localStorage.getItem('hangmanCurrentStreak') || '0', 10);
-        let timerInterval, startTime, elapsedTime = 0;
-        let inputBuffer = ""; // ARG用タイピング監視
-        const SECRET_KEY = "READY"; // ←これを打つと演出開始
-
+        // ハングマンの簡易ロジック
+        const words = ["ECONOMY", "LOGIC", "READY", "PLAYER", "SYSTEM"];
+        let secretWord = words[Math.floor(Math.random() * words.length)];
         const wordDisplay = document.getElementById('word-display');
-        const keyboard = document.getElementById('keyboard');
-        const guessedLettersList = document.getElementById('guessed-letters-list');
-        const remainingGuessesSpan = document.getElementById('remaining-guesses');
-        const restartButton = document.getElementById('restart-button');
-        const messageModal = document.getElementById('message-modal');
-        const modalCloseButton = document.getElementById('modal-close-button');
-        const currentModeDisplay = document.getElementById('current-mode-display');
-        const currentStreakDisplay = document.getElementById('current-streak-display');
-        const timerDisplay = document.getElementById('timer-display');
+        wordDisplay.textContent = "_".repeat(secretWord.length);
 
-        function initializeGame() {
-            secretWord = words[Math.floor(Math.random() * words.length)];
-            guessedLetters = new Set();
-            incorrectGuesses = 0;
-            gameStatus = 'playing';
-            updateModeUI();
-            updateWordDisplay();
-            updateHangedMan();
-            updateGuessedLettersList();
-            updateRemainingGuesses();
-            createKeyboard();
-            restartButton.disabled = true;
-            wordDisplay.classList.remove('text-red-500');
-        }
+        // --- ARG演出ロジック ---
 
-        function createModeSelectionButtons() {
-            const container = document.getElementById('mode-selection-buttons');
-            container.innerHTML = '';
-            Object.values(GAME_MODES).forEach(mode => {
-                const btn = document.createElement('button');
-                btn.textContent = mode;
-                btn.className = `px-3 py-1 text-xs font-semibold rounded-full border-2 ${mode === currentMode ? 'bg-indigo-500 text-white' : 'bg-white text-indigo-600'}`;
-                btn.onclick = () => { currentMode = mode; initializeGame(); };
-                container.appendChild(btn);
-            });
-        }
-
-        function updateModeUI() {
-            currentModeDisplay.textContent = currentMode;
-            currentStreakDisplay.textContent = currentStreak;
-            createModeSelectionButtons();
-        }
-
-        function updateWordDisplay() {
-            wordDisplay.textContent = [...secretWord].map(l => guessedLetters.has(l) ? l : '_').join('');
-        }
-
-        function updateHangedMan() {
-            document.getElementById("part-gallows-base").classList.toggle('hidden', incorrectGuesses < 1);
-            const showStructure = incorrectGuesses >= 2;
-            ["part-gallows-pole", "part-gallows-beam", "part-gallows-rope"].forEach(id => document.getElementById(id).classList.toggle('hidden', !showStructure));
-            humanParts.forEach((id, i) => document.getElementById(id).classList.toggle('hidden', incorrectGuesses < (i + 3)));
-        }
-
-        function updateGuessedLettersList() { guessedLettersList.textContent = Array.from(guessedLetters).sort().join(', '); }
-        function updateRemainingGuesses() { remainingGuessesSpan.textContent = maxIncorrectGuesses - incorrectGuesses; }
-
-        function createKeyboard() {
-            keyboard.innerHTML = '';
-            keyboardLayout.forEach(row => {
-                const rowDiv = document.createElement('div');
-                rowDiv.className = 'key-row';
-                row.forEach(letter => {
-                    const btn = document.createElement('button');
-                    btn.textContent = letter;
-                    btn.className = 'key-button bg-indigo-500 text-white disabled:bg-gray-300';
-                    btn.dataset.letter = letter;
-                    btn.onclick = () => handleGuess(letter, btn);
-                    rowDiv.appendChild(btn);
-                });
-                keyboard.appendChild(rowDiv);
-            });
-        }
-
-        function handleGuess(letter, btn) {
-            if (gameStatus !== 'playing' || guessedLetters.has(letter)) return;
-            guessedLetters.add(letter);
-            if (secretWord.includes(letter)) {
-                updateWordDisplay();
-                btn.classList.add('bg-green-500');
-            } else {
-                incorrectGuesses++;
-                updateHangedMan();
-                updateRemainingGuesses();
-                btn.classList.add('bg-red-500');
-            }
-            btn.disabled = true;
-            checkGameStatus();
-        }
-
-        function checkGameStatus() {
-            const won = [...secretWord].every(l => guessedLetters.has(l));
-            if (won) endGame(true);
-            else if (incorrectGuesses >= maxIncorrectGuesses) endGame(false);
-        }
-
-        function endGame(isWin) {
-            gameStatus = isWin ? 'won' : 'lost';
-            restartButton.disabled = false;
-            if (!isWin) wordDisplay.textContent = secretWord;
-            alert(isWin ? "勝利！" : "ゲームオーバー。正解は: " + secretWord);
-        }
-
-        // --- ARG演出のトリガー関数 ---
         function triggerArgSequence() {
-            const curtain = document.getElementById('arg-curtain');
-            const screen = document.getElementById('arg-screen');
-            curtain.classList.add('active');
-            setTimeout(() => { screen.style.display = 'flex'; }, 2000);
+            document.getElementById('arg-curtain').classList.add('active');
+            setTimeout(() => {
+                document.getElementById('arg-screen').style.display = 'flex';
+                startGlitchTyping();
+            }, 1500);
         }
 
-        document.addEventListener('keydown', (e) => {
-            const key = e.key.toUpperCase();
+        // バラバラな文字列が打たれる演出
+        function startGlitchTyping() {
+            const area = document.getElementById('glitch-area');
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()_+{}[]|;:,.<>?/";
+            let iterations = 0;
             
-            // 隠しコマンド監視
-            inputBuffer += key;
-            if (inputBuffer.endsWith(SECRET_KEY)) {
-                triggerArgSequence();
-                return;
-            }
+            const interval = setInterval(() => {
+                let randomStr = "";
+                for(let i=0; i<60; i++) {
+                    randomStr += chars[Math.floor(Math.random() * chars.length)];
+                }
+                area.innerText = randomStr;
+                iterations++;
 
-            if (key.length === 1 && key >= 'A' && key <= 'Z' && gameStatus === 'playing') {
-                const btn = document.querySelector(`button[data-letter="${key}"]`);
-                if (btn && !btn.disabled) handleGuess(key, btn);
+                if (iterations > 30) {
+                    clearInterval(interval);
+                    area.innerText = "CRITICAL ERROR: UNAUTHORIZED ACCESS DETECTED.\nBOOTING LOGIN_PROTOCOL...";
+                    setTimeout(() => {
+                        area.classList.add('text-green-800'); // 文字を少し暗くしてログインを目立たせる
+                        document.getElementById('login-form').style.display = 'block';
+                        document.getElementById('login-input').focus();
+                    }, 1000);
+                }
+            }, 60);
+        }
+
+        // ログイン判定
+        document.getElementById('login-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const val = this.value.toUpperCase();
+                const status = document.getElementById('auth-status');
+                if (val === FINAL_PASSWORD) {
+                    status.innerText = "AUTHENTICATING...";
+                    setTimeout(() => {
+                        status.innerText = "";
+                        document.getElementById('success-content').classList.remove('hidden');
+                        this.style.display = 'none';
+                        document.querySelector('.cursor').style.display = 'none';
+                    }, 1500);
+                } else {
+                    status.innerText = "INVALID PASSWORD. TRY AGAIN.";
+                    this.value = "";
+                }
             }
         });
 
-        window.onload = initializeGame;
+        // キー入力監視
+        document.addEventListener('keydown', (e) => {
+            if (document.activeElement.id === 'login-input') return; // ログイン入力中は無視
+            
+            const key = e.key.toUpperCase();
+            inputBuffer += key;
+            if (inputBuffer.endsWith(SECRET_KEY)) {
+                triggerArgSequence();
+            }
+            if (inputBuffer.length > 20) inputBuffer = inputBuffer.substring(10);
+        });
     </script>
 </body>
 </html>
